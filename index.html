@@ -8,786 +8,487 @@
 <meta name="apple-mobile-web-app-title" content="HP-15C">
 <title>HP-15C RPN</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --body-bg: #1c1c1e;
-  --calc-bg: #2a2a2e;
-  --display-bg: #0a0f08;
-  --amber: #c8e88a;
-  --amber-bright: #e8ffaa;
-  --amber-dim: #5a7040;
-  --amber-glow: rgba(180,230,100,0.12);
-  --f-color: #f0a020;    /* gold f-shift */
-  --g-color: #60b8e0;    /* blue g-shift */
-  --btn-main: #3a3a40;
-  --btn-main-border: #555560;
-  --btn-num: #28282e;
-  --btn-num-border: #444450;
-  --btn-enter: #222230;
-  --btn-enter-border: #3a3a60;
-  --btn-op: #302830;
-  --btn-op-border: #504050;
-  --shadow: 0 12px 40px rgba(0,0,0,0.8);
+html,body{
+  width:100%;height:100%;
+  background:#000;
+  overflow:hidden;
+  font-family:'Share Tech Mono',monospace;
+  touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
 }
 
-html, body {
-  width: 100%; height: 100%;
-  background: var(--body-bg);
-  overflow: hidden;
-  font-family: 'Share Tech Mono', monospace;
-  touch-action: manipulation;
+.portrait-warn{
+  display:none;position:fixed;inset:0;
+  background:#000;color:#aaa;
+  font-family:'Share Tech Mono',monospace;font-size:15px;
+  align-items:center;justify-content:center;
+  flex-direction:column;gap:14px;z-index:999;letter-spacing:2px;
+}
+.portrait-warn .arrow{font-size:52px;}
+
+@media(orientation:portrait){
+  .portrait-warn{display:flex;}
+  .calc-wrap{display:none!important;}
 }
 
-/* Force landscape */
-.portrait-warning {
-  display: none;
-  position: fixed; inset: 0;
-  background: #111;
-  color: #888;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 14px;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 999;
-}
-.portrait-warning .icon { font-size: 40px; }
-
-@media (orientation: portrait) {
-  .portrait-warning { display: flex; }
-  .calculator { display: none; }
+.calc-wrap{
+  display:flex;flex-direction:row;
+  width:100vw;height:100vh;
+  background:#111;
+  padding:env(safe-area-inset-top,2px) env(safe-area-inset-right,6px)
+           env(safe-area-inset-bottom,2px) env(safe-area-inset-left,6px);
+  gap:7px;align-items:stretch;
 }
 
-.calculator {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 4px) env(safe-area-inset-left, 8px);
-  gap: 8px;
-  background: var(--calc-bg);
+/* ── DISPLAY ── */
+.disp{
+  width:178px;flex-shrink:0;
+  background:#040904;
+  border-radius:8px;border:1px solid #152010;
+  box-shadow:inset 0 2px 20px #000,0 0 22px rgba(120,200,60,0.09);
+  display:flex;flex-direction:column;
+  padding:7px 10px 5px;gap:0;
+}
+.disp-top{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;
+}
+.hp-brand{
+  font-family:'Orbitron',monospace;font-size:10px;font-weight:700;
+  color:#3a5825;letter-spacing:3px;
+}
+.shift-badge{
+  font-size:12px;font-weight:bold;letter-spacing:1px;
+  padding:1px 7px;border-radius:4px;border:1px solid transparent;
+  min-width:26px;text-align:center;transition:all 0.1s;
+}
+.shift-badge.none{color:#1e2e18;border-color:transparent;}
+.shift-badge.f   {color:#ffcc00;border-color:#ffcc00;background:rgba(255,204,0,0.13);}
+.shift-badge.g   {color:#44ccff;border-color:#44ccff;background:rgba(68,204,255,0.13);}
+
+.stack-rows{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;}
+
+.sr{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;}
+.sr-lbl{font-size:9px;color:#253818;width:16px;flex-shrink:0;letter-spacing:.5px;}
+.sr-val{font-size:11px;color:#345224;text-align:right;flex:1;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr.xreg .sr-lbl{color:#88dd44;font-size:10px;}
+.sr.xreg .sr-val{color:#ccff66;font-size:17px;font-weight:bold;}
+
+.disp-footer{
+  margin-top:5px;padding-top:4px;
+  border-top:1px solid #0c180a;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.anns{display:flex;gap:5px;}
+.ann{font-size:8px;color:#182210;letter-spacing:.5px;transition:color 0.1s;}
+.ann.on {color:#88dd44;}
+.ann.fon{color:#ffcc00;}
+.ann.gon{color:#44ccff;}
+
+.ang-btn{
+  font-size:9px;color:#3a5020;
+  border:1px solid #253818;border-radius:3px;
+  padding:1px 6px;cursor:pointer;letter-spacing:1px;
+  -webkit-tap-highlight-color:transparent;
+}
+.ang-btn:active{color:#ccff66;border-color:#88dd44;}
+.err-line{font-size:9px;color:#ff5050;min-height:12px;text-align:right;margin-top:3px;letter-spacing:1px;}
+
+/* ── KEYPAD: 9 cols × 5 rows ── */
+.keypad{
+  flex:1;
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+  grid-template-rows:repeat(5,1fr);
+  gap:5px;padding:3px 0;
 }
 
-/* ── DISPLAY PANEL (left column) ── */
-.display-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 200px;
-  flex-shrink: 0;
-  background: var(--display-bg);
-  border-radius: 10px;
-  border: 1px solid #1a2010;
-  box-shadow: inset 0 2px 16px rgba(0,0,0,0.9), 0 0 30px var(--amber-glow);
-  padding: 8px 10px;
-  overflow: hidden;
+/* ── BASE KEY ── */
+.k{
+  position:relative;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  border-radius:6px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  user-select:none;
+  transition:filter .06s,transform .05s;
+  overflow:visible;
+  padding-bottom:11px;
+  /* default: dark grey */
+  background:linear-gradient(175deg,#3e3e3e,#282828);
+  border:1px solid #565656;
+  box-shadow:0 3px 0 #080808,inset 0 1px 0 rgba(255,255,255,0.1);
 }
+.k:active{transform:translateY(2px);box-shadow:0 1px 0 #000;filter:brightness(1.4);}
 
-.brand-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
+.k .ml{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px;color:#fff;
+  text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
 }
-.brand {
-  font-family: 'Orbitron', monospace;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  color: var(--amber-dim);
-}
-.shift-indicator {
-  font-size: 9px;
-  letter-spacing: 1px;
-  padding: 1px 5px;
-  border-radius: 3px;
-  border: 1px solid transparent;
-  transition: all 0.1s;
-  min-width: 22px;
-  text-align: center;
-}
-.shift-indicator.f-active { color: var(--f-color); border-color: var(--f-color); background: rgba(240,160,32,0.1); }
-.shift-indicator.g-active { color: var(--g-color); border-color: var(--g-color); background: rgba(96,184,224,0.1); }
-.shift-indicator.none { color: var(--amber-dim); border-color: transparent; }
+.k .ml.sm{font-size:10px;}
+.k .ml.xs{font-size:9px;}
 
-.stack-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 1px;
-}
+/* f/g shift labels */
+.k .fl{position:absolute;bottom:2px;left:3px;font-size:7.5px;color:#ffcc00;line-height:1;white-space:nowrap;}
+.k .gl{position:absolute;bottom:2px;right:3px;font-size:7.5px;color:#44ccff;line-height:1;white-space:nowrap;}
 
-.stack-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 1px 0;
-  border-bottom: 1px solid rgba(180,230,100,0.04);
+/* ── KEY VARIANTS ── */
+.k.num{
+  background:linear-gradient(175deg,#484848,#303030);
+  border-color:#686868;
 }
-.stack-row:last-child { border-bottom: none; }
+.k.num .ml{font-size:18px;font-weight:bold;color:#fff;}
 
-.s-label {
-  font-size: 8px;
-  color: var(--amber-dim);
-  width: 14px;
-  flex-shrink: 0;
-  letter-spacing: 0.5px;
+.k.op{
+  background:linear-gradient(175deg,#3c2828,#281818);
+  border-color:#664040;
 }
-.s-value {
-  font-size: 11px;
-  color: var(--amber-dim);
-  text-align: right;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.55;
-}
+.k.op .ml{font-size:18px;color:#ffbbbb;font-weight:bold;}
 
-.stack-row.x-row .s-label { color: var(--amber); font-size: 9px; }
-.stack-row.x-row .s-value { color: var(--amber-bright); font-size: 15px; opacity: 1; font-weight: bold; }
+.k.enter-k{
+  background:linear-gradient(175deg,#1e301e,#111e11);
+  border-color:3a583a;
+  padding-bottom:0;
+}
+.k.enter-k .ml{font-size:12px;color:#aaffaa;letter-spacing:2px;}
 
-.display-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid rgba(180,230,100,0.08);
+.k.fkey{
+  background:linear-gradient(175deg,#4e3c00,#342800);
+  border-color:#887000;
 }
-.annunciators {
-  display: flex; gap: 4px;
-}
-.ann {
-  font-size: 7px;
-  color: var(--amber-dim);
-  opacity: 0.4;
-  letter-spacing: 0.5px;
-  transition: opacity 0.1s, color 0.1s;
-}
-.ann.on { opacity: 1; color: var(--amber); }
-.ann.f-on { opacity: 1; color: var(--f-color); }
-.ann.g-on { opacity: 1; color: var(--g-color); }
+.k.fkey .ml{color:#ffcc00;font-size:12px;font-weight:bold;letter-spacing:2px;}
 
-.angle-btn {
-  font-size: 8px;
-  color: var(--amber-dim);
-  border: 1px solid var(--amber-dim);
-  border-radius: 3px;
-  padding: 1px 5px;
-  cursor: pointer;
-  letter-spacing: 0.5px;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 0.1s, border-color 0.1s;
+.k.gkey{
+  background:linear-gradient(175deg,#00223c,#001428);
+  border-color:#005080;
 }
-.angle-btn:active { color: var(--amber); border-color: var(--amber); }
+.k.gkey .ml{color:#44ccff;font-size:12px;font-weight:bold;letter-spacing:2px;}
 
-.error-line {
-  font-size: 9px;
-  color: #ff6060;
-  min-height: 11px;
-  text-align: right;
-  letter-spacing: 1px;
-  margin-top: 2px;
+.k.stk{
+  background:linear-gradient(175deg,#2c2c40,#181824);
+  border-color:424260;
 }
+.k.stk .ml{color:#aaaaee;font-size:11px;}
 
-/* ── KEYPAD PANEL (right, 7 cols × 5 rows) ── */
-.keypad {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(5, 1fr);
-  gap: 5px;
-  padding: 4px 0;
+.k.clr{
+  background:linear-gradient(175deg,#3c1c1c,#260e0e);
+  border-color:#662424;
 }
+.k.clr .ml{color:#ff7070;font-size:13px;}
 
-/* Base button */
-.k {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid #555560;
-  background: linear-gradient(180deg, #424248, #2e2e34);
-  color: #d0d0d8;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 11px;
-  cursor: pointer;
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  touch-action: manipulation;
-  transition: filter 0.06s, transform 0.06s;
-  box-shadow: 0 3px 0 #111, inset 0 1px 0 rgba(255,255,255,0.07);
-  padding: 2px 2px 10px; /* extra bottom for shift labels */
-  overflow: visible;
+.k.mem{
+  background:linear-gradient(175deg,#303018,#1e1e0c);
+  border-color:565620;
 }
+.k.mem .ml{color:#dddd88;font-size:11px;}
 
-.k:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #111;
-  filter: brightness(1.25);
+.k.f-lit{
+  background:linear-gradient(175deg,#5e4800,#3c2e00)!important;
+  border-color:#ffcc00!important;
+  box-shadow:0 0 12px rgba(255,204,0,.55),0 3px 0 #000!important;
 }
-
-/* Main label */
-.k .ml {
-  font-size: 11px;
-  line-height: 1;
-  text-align: center;
-  letter-spacing: 0.3px;
+.k.g-lit{
+  background:linear-gradient(175deg,#003050,#001830)!important;
+  border-color:#44ccff!important;
+  box-shadow:0 0 12px rgba(68,204,255,.55),0 3px 0 #000!important;
 }
-.k .ml.small { font-size: 9px; }
-.k .ml.tiny  { font-size: 8px; }
-
-/* Shift labels below button — absolutely positioned */
-.k .fl, .k .gl {
-  position: absolute;
-  bottom: 2px;
-  font-size: 7px;
-  line-height: 1;
-  letter-spacing: 0.3px;
-}
-.k .fl { left: 3px; color: var(--f-color); }
-.k .gl { right: 3px; color: var(--g-color); }
-
-/* Button variants */
-.k.num {
-  background: linear-gradient(180deg, #323238, #222228);
-  border-color: #484850;
-  color: #e8e8f0;
-  font-size: 14px;
-  font-weight: bold;
-}
-.k.enter-btn {
-  background: linear-gradient(180deg, #28283a, #1a1a2a);
-  border-color: #4040608;
-  color: #a0a0d0;
-  font-size: 10px;
-  letter-spacing: 1px;
-}
-.k.op {
-  background: linear-gradient(180deg, #38282e, #26181e);
-  border-color: #584048;
-  color: #e0a0b0;
-}
-.k.shift-f {
-  background: linear-gradient(180deg, #4a3810, #342808);
-  border-color: #806020;
-  color: var(--f-color);
-  font-size: 10px;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-.k.shift-g {
-  background: linear-gradient(180deg, #102838, #081820);
-  border-color: #204060;
-  color: var(--g-color);
-  font-size: 10px;
-  font-weight: bold;
-  letter-spacing: 1px;
-}
-.k.clr-btn {
-  background: linear-gradient(180deg, #38201a, #261210);
-  border-color: #603028;
-  color: #ff8070;
-}
-.k.mem-btn {
-  background: linear-gradient(180deg, #28280a, #1a1a04);
-  border-color: #505018;
-  color: #d0d060;
-}
-
-/* active shift highlight */
-.k.f-lit {
-  background: linear-gradient(180deg, #5a4010, #3a2808) !important;
-  border-color: #f0a020 !important;
-  box-shadow: 0 0 8px rgba(240,160,32,0.4), 0 3px 0 #111 !important;
-}
-.k.g-lit {
-  background: linear-gradient(180deg, #102840, #081820) !important;
-  border-color: #60b8e0 !important;
-  box-shadow: 0 0 8px rgba(96,184,224,0.4), 0 3px 0 #111 !important;
-}
+.k.ghost{background:transparent;border:none;box-shadow:none;pointer-events:none;}
 </style>
 </head>
 <body>
 
-<div class="portrait-warning">
-  <div class="icon">⟳</div>
-  <div>Rotate to landscape to use HP-15C</div>
+<div class="portrait-warn">
+  <div class="arrow">↻</div>
+  <div>ROTATE TO LANDSCAPE</div>
 </div>
 
-<div class="calculator">
+<div class="calc-wrap">
 
-  <!-- LEFT: Display -->
-  <div class="display-panel">
-    <div class="brand-row">
-      <span class="brand">HP·15C</span>
-      <span class="shift-indicator none" id="shiftInd">—</span>
+  <!-- DISPLAY -->
+  <div class="disp">
+    <div class="disp-top">
+      <span class="hp-brand">HP·15C</span>
+      <span class="shift-badge none" id="shiftBadge">—</span>
     </div>
-
-    <div class="stack-area" id="stackArea"></div>
-
-    <div class="display-footer">
-      <div class="annunciators">
-        <span class="ann" id="annUser">USER</span>
+    <div class="stack-rows" id="stackRows"></div>
+    <div class="disp-footer">
+      <div class="anns">
         <span class="ann" id="annF">f</span>
         <span class="ann" id="annG">g</span>
-        <span class="ann" id="annMem">M</span>
+        <span class="ann" id="annM">M</span>
       </div>
-      <span class="angle-btn" id="angleBtn" onclick="toggleAngle()">DEG</span>
+      <span class="ang-btn" id="angBtn" onclick="toggleAngle()">DEG</span>
     </div>
-    <div class="error-line" id="errLine"></div>
+    <div class="err-line" id="errLine"></div>
   </div>
 
-  <!-- RIGHT: Keypad — 7×5 grid matching HP 15C layout -->
-  <!--
-    HP 15C row layout (top to bottom):
-    Row 1: √x  e^x  10^x  y^x  1/x  CHS  7  (7 keys)   — but 15c has 5 top + 5 num area
-    Actually 15C is 5 columns × 7 rows conceptually. We map to 7 cols × 5 rows (landscape).
-
-    Our mapping (7 cols × 5 rows):
-    Row 1: [f]  [g]  [STO] [RCL] [R↓] [X⇄Y] [BACK]
-    Row 2: [√x] [e^x][10^x][y^x] [1/x] [CHS] [÷]
-    Row 3: [SIN][COS][TAN] [LOG] [LN]  [EEX] [×]
-    Row 4: [7]  [8]  [9]   [x!]  [ABS] [LAST][−]
-    Row 5: [4]  [5]  [6]   [π]   [RND] [ENTER span2] [+]  -- ENTER spans 2? no, 7 cols
-    Actually keep clean 7×5:
-    Row 5: [4]  [5]  [6]   [π]   [RND] [+]  [ENTER]
-    Row 6: [1]  [2]  [3]   [0]   [.]   [−]  [ENTER cont]
-    -- That's 6 rows. Let's do 5 rows with ENTER spanning rows 5-6? No, we only have 5 rows.
-    
-    Final clean 7 cols × 5 rows:
-    R1: f      g      STO    RCL    R↓     X⇄Y   CLR
-    R2: √x     e^x    10^x   y^x    1/x    CHS    ÷
-    R3: SIN    COS    TAN    LOG    LN     EEX    ×
-    R4: 7      8      9      x!     ABS    LASTx  −
-    R5: 4      5      6      π      RND    ENTER  +
-    ... but we need 0,1,2,3,. — 5 num keys missing
-    
-    Better: use 8 cols? Or rethink.
-    
-    Let's do 7 cols × 6 rows with smaller buttons? Or keep 5 rows but use col 7 for all ops:
-    Actually let's do the classic HP approach: digits take bottom 3 rows left side:
-    
-    R1: f    g    STO  RCL  R↓   X⇄Y  CLR
-    R2: √x   e^x  10^x y^x  1/x  CHS  ÷
-    R3: SIN  COS  TAN  LOG  LN   EEX  ×
-    R4: 7    8    9    x!   ABS  LASTx −
-    R5: 4    5    6    π    RND  ENTER(span rows 5) +  <-- ENTER wide?
-    
-    We have 5 rows and need: 0,1,2,3,4,5,6,7,8,9,. = 11 digit/dot keys
-    Can't fit without 6 rows. So let's do 6 rows:
-    (grid will be 7 cols × 6 rows, buttons will be shorter)
-  -->
-
+  <!-- KEYPAD 9×5 -->
   <div class="keypad" id="keypad"></div>
 
 </div>
 
 <script>
-// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════
-const STACK_SIZE = 8;
-let stack    = new Array(STACK_SIZE).fill(0);
-let inputStr = '';
-let isTyping = false;
-let shiftMode = 0;   // 0=none, 1=f, 2=g
-let angleMode = 'DEG';
-let memory   = 0;
-let memUsed  = false;
-let lastX    = 0;
-const LABELS = ['X','Y','Z','T','5','6','7','8'];
+// ═══════════════════════════════════════
+const SZ=8;
+let stack=new Array(SZ).fill(0);
+let inputStr='',isTyping=false;
+let shiftMode=0; // 0 none, 1 f, 2 g
+let angleMode='DEG';
+let memory=0,memUsed=false,lastX=0;
+const LBLS=['X','Y','Z','T','5','6','7','8'];
 
-// ═══════════════════════════════════════════════
-// KEYPAD DEFINITION
-// 7 columns × 6 rows
-// Each key: { ml, fl, gl, fn, fFn, gFn, cls }
-// ═══════════════════════════════════════════════
-// fn  = normal action string
-// fFn = f-shift action
-// gFn = g-shift action
-const KEYS = [
-  // Row 1 — shift & stack
-  { ml:'f',       cls:'shift-f',  fn:'shiftF'                            },
-  { ml:'g',       cls:'shift-g',  fn:'shiftG'                            },
-  { ml:'STO',     cls:'',         fn:'sto',    fl:'MATRIX', gl:'DIM'     },
-  { ml:'RCL',     cls:'',         fn:'rcl',    fl:'RESULT', gl:'INDEX'   },
-  { ml:'R↓',      cls:'',         fn:'rollDn', fl:'R↑',     gl:'CLEAR'   , fFn:'rollUp', gFn:'clearStk' },
-  { ml:'X⇄Y',    cls:'',         fn:'swap',   fl:'RND',    gl:'CLx'     , fFn:'rnd',    gFn:'clx'      },
-  { ml:'⌫',       cls:'clr-btn',  fn:'bksp',   fl:'CLEAR',  gl:''        , fFn:'clearAll'               },
-
-  // Row 2 — scientific top
-  { ml:'√x',      cls:'',         fn:'sqrt',   fl:'x²',     gl:'LSTx'    , fFn:'sq',     gFn:'lastx'    },
-  { ml:'eˣ',      cls:'',         fn:'expx',   fl:'LN',     gl:'%'       , fFn:'ln',     gFn:'pct'      },
-  { ml:'10ˣ',     cls:'',         fn:'pow10',  fl:'LOG',    gl:'Δ%'      , fFn:'log',    gFn:'dpct'     },
-  { ml:'yˣ',      cls:'',         fn:'yx',     fl:'x√y',    gl:'%T'      , fFn:'xrty',   gFn:'pctt'     },
-  { ml:'1/x',     cls:'',         fn:'recip',  fl:'x!',     gl:'ABS'     , fFn:'fact',   gFn:'abs'      },
-  { ml:'CHS',     cls:'',         fn:'chs',    fl:'INT',    gl:'FRAC'    , fFn:'intg',   gFn:'frac'     },
-  { ml:'÷',       cls:'op',       fn:'div',    fl:'',       gl:''                                        },
-
-  // Row 3 — trig + log
-  { ml:'SIN',     cls:'',         fn:'sin',    fl:'asin',   gl:'SIN⁻¹'   , fFn:'asin',   gFn:'asin'     },
-  { ml:'COS',     cls:'',         fn:'cos',    fl:'acos',   gl:'COS⁻¹'   , fFn:'acos',   gFn:'acos'     },
-  { ml:'TAN',     cls:'',         fn:'tan',    fl:'atan',   gl:'TAN⁻¹'   , fFn:'atan',   gFn:'atan'     },
-  { ml:'LOG',     cls:'',         fn:'log',    fl:'10ˣ',    gl:''        , fFn:'pow10'                   },
-  { ml:'LN',      cls:'',         fn:'ln',     fl:'eˣ',     gl:''        , fFn:'expx'                    },
-  { ml:'EEX',     cls:'',         fn:'eex',    fl:'π',      gl:''        , fFn:'pi'                      },
-  { ml:'×',       cls:'op',       fn:'mul',    fl:'',       gl:''                                        },
-
-  // Row 4 — 7 8 9 + extras
-  { ml:'7',       cls:'num',      fn:'d7'                                 },
-  { ml:'8',       cls:'num',      fn:'d8'                                 },
-  { ml:'9',       cls:'num',      fn:'d9'                                 },
-  { ml:'x!',      cls:'',         fn:'fact',   fl:'RND',    gl:'INT'     , fFn:'rnd',    gFn:'intg'     },
-  { ml:'ABS',     cls:'',         fn:'abs',    fl:'FRAC',   gl:'LASTx'   , fFn:'frac',   gFn:'lastx'    },
-  { ml:'LSTx',    cls:'',         fn:'lastx',  fl:'',       gl:''                                        },
-  { ml:'−',       cls:'op',       fn:'sub',    fl:'',       gl:''                                        },
-
-  // Row 5 — 4 5 6 + extras
-  { ml:'4',       cls:'num',      fn:'d4'                                 },
-  { ml:'5',       cls:'num',      fn:'d5'                                 },
-  { ml:'6',       cls:'num',      fn:'d6'                                 },
-  { ml:'π',       cls:'',         fn:'pi',     fl:'',       gl:''                                        },
-  { ml:'RND',     cls:'',         fn:'rnd',    fl:'',       gl:''                                        },
-  { ml:'ENTER',   cls:'enter-btn',fn:'enter',  fl:'',       gl:'',       span:2                          },
-  { ml:'+',       cls:'op',       fn:'add',    fl:'',       gl:''                                        },
-
-  // Row 6 — 1 2 3 0 .
-  { ml:'1',       cls:'num',      fn:'d1'                                 },
-  { ml:'2',       cls:'num',      fn:'d2'                                 },
-  { ml:'3',       cls:'num',      fn:'d3'                                 },
-  { ml:'0',       cls:'num',      fn:'d0'                                 },
-  { ml:'·',       cls:'num',      fn:'dot'                                },
-  // col 6-7 for row 6: blank (ENTER took span:2 above) + MOD
-  { ml:'',        cls:'',         fn:null,     ghost:true                 },
-  { ml:'MOD',     cls:'op',       fn:'mod',    fl:'',       gl:''         },
+// ═══════════════════════════════════════
+// KEY TABLE
+// col 1-9, row 1-5
+// ENTER: col 8, row 1, rowspan 2
+//
+// Layout:
+//  Col:  1      2      3      4      5      6    7    8        9
+//  R1: [√x]  [e^x] [10^x]  [y^x]  [1/x]  [CHS][EEX][ENTER]  [÷]
+//  R2: [STO]  [RCL]  [R↓]  [X⇄Y]  [⌫]   [ 7 ][ 8 ][ ↑↑  ]  [×]
+//  R3: [SIN]  [COS]  [TAN]  [LOG]  [LN]  [ 4 ][ 5 ][ 6  ]   [−]
+//  R4: [ f ]  [ g ]  [ π ]  [x!]  [ABS]  [ 1 ][ 2 ][ 3  ]   [+]
+//  R5: [LSTx] [RND] [INT] [FRAC]  [MOD]  [ 0 ][ · ][    ]   [ ]
+// ═══════════════════════════════════════
+const KEYS=[
+  // Row 1
+  {c:1,r:1,ml:'√x',   cls:'',      fn:'sqrt',  fFn:'sq',    gFn:'lastx', fl:'x²',  gl:'LSTx'},
+  {c:2,r:1,ml:'eˣ',   cls:'',      fn:'expx',  fFn:'ln',    gFn:'pct',   fl:'LN',  gl:'%'   },
+  {c:3,r:1,ml:'10ˣ',  cls:'',      fn:'pow10', fFn:'log',   gFn:'dpct',  fl:'LOG', gl:'Δ%'  },
+  {c:4,r:1,ml:'yˣ',   cls:'',      fn:'yx',    fFn:'xrty',               fl:'x√y'            },
+  {c:5,r:1,ml:'1/x',  cls:'',      fn:'recip', fFn:'fact',  gFn:'abs',   fl:'x!',  gl:'ABS' },
+  {c:6,r:1,ml:'CHS',  cls:'',      fn:'chs',   fFn:'intg',  gFn:'frac',  fl:'INT', gl:'FRAC'},
+  {c:7,r:1,ml:'EEX',  cls:'',      fn:'eex',   fFn:'pi',                 fl:'π'              },
+  {c:8,r:1,ml:'ENTER',cls:'enter-k',fn:'enter',rs:2                                          },
+  {c:9,r:1,ml:'÷',    cls:'op',    fn:'div'                                                  },
+  // Row 2
+  {c:1,r:2,ml:'STO',  cls:'mem',   fn:'sto',   fFn:'mplus', gFn:'mminus',fl:'M+',  gl:'M−'  },
+  {c:2,r:2,ml:'RCL',  cls:'mem',   fn:'rcl'                                                  },
+  {c:3,r:2,ml:'R↓',   cls:'stk',   fn:'rollDn',fFn:'rollUp',             fl:'R↑'             },
+  {c:4,r:2,ml:'X⇄Y', cls:'stk',   fn:'swap',  fFn:'clx',                fl:'CLx'            },
+  {c:5,r:2,ml:'⌫',    cls:'clr',   fn:'bksp',  fFn:'clearAll',           fl:'CLR'            },
+  {c:6,r:2,ml:'7',    cls:'num',   fn:'d7'                                                   },
+  {c:7,r:2,ml:'8',    cls:'num',   fn:'d8'                                                   },
+  // col 8 row 2: ENTER span — skip
+  {c:9,r:2,ml:'×',    cls:'op',    fn:'mul'                                                  },
+  // Row 3
+  {c:1,r:3,ml:'SIN',  cls:'',      fn:'sin',   fFn:'asin',               fl:'A⁻¹'            },
+  {c:2,r:3,ml:'COS',  cls:'',      fn:'cos',   fFn:'acos',               fl:'A⁻¹'            },
+  {c:3,r:3,ml:'TAN',  cls:'',      fn:'tan',   fFn:'atan',               fl:'A⁻¹'            },
+  {c:4,r:3,ml:'LOG',  cls:'',      fn:'log',   fFn:'pow10',              fl:'10ˣ'            },
+  {c:5,r:3,ml:'LN',   cls:'',      fn:'ln',    fFn:'expx',               fl:'eˣ'             },
+  {c:6,r:3,ml:'4',    cls:'num',   fn:'d4'                                                   },
+  {c:7,r:3,ml:'5',    cls:'num',   fn:'d5'                                                   },
+  {c:8,r:3,ml:'6',    cls:'num',   fn:'d6'                                                   },
+  {c:9,r:3,ml:'−',    cls:'op',    fn:'sub'                                                  },
+  // Row 4
+  {c:1,r:4,ml:'f',    cls:'fkey',  fn:'shiftF'                                               },
+  {c:2,r:4,ml:'g',    cls:'gkey',  fn:'shiftG'                                               },
+  {c:3,r:4,ml:'π',    cls:'',      fn:'pi'                                                   },
+  {c:4,r:4,ml:'x!',   cls:'',      fn:'fact',  fFn:'rnd',   gFn:'intg',  fl:'RND', gl:'INT' },
+  {c:5,r:4,ml:'ABS',  cls:'',      fn:'abs',   fFn:'frac',  gFn:'lastx', fl:'FRAC',gl:'LSTx'},
+  {c:6,r:4,ml:'1',    cls:'num',   fn:'d1'                                                   },
+  {c:7,r:4,ml:'2',    cls:'num',   fn:'d2'                                                   },
+  {c:8,r:4,ml:'3',    cls:'num',   fn:'d3'                                                   },
+  {c:9,r:4,ml:'+',    cls:'op',    fn:'add'                                                  },
+  // Row 5
+  {c:1,r:5,ml:'LSTx', cls:'stk',   fn:'lastx'                                                },
+  {c:2,r:5,ml:'RND',  cls:'',      fn:'rnd'                                                  },
+  {c:3,r:5,ml:'INT',  cls:'',      fn:'intg'                                                 },
+  {c:4,r:5,ml:'FRAC', cls:'',      fn:'frac'                                                 },
+  {c:5,r:5,ml:'MOD',  cls:'op',    fn:'mod'                                                  },
+  {c:6,r:5,ml:'0',    cls:'num',   fn:'d0'                                                   },
+  {c:7,r:5,ml:'·',    cls:'num',   fn:'dot'                                                  },
+  {c:8,r:5,ml:'',     cls:'ghost', fn:null                                                   },
+  {c:9,r:5,ml:'',     cls:'ghost', fn:null                                                   },
 ];
 
-// ═══════════════════════════════════════════════
-// BUILD KEYPAD
-// ═══════════════════════════════════════════════
-function buildKeypad() {
-  const kp = document.getElementById('keypad');
-  kp.style.gridTemplateColumns = 'repeat(7, 1fr)';
-  kp.style.gridTemplateRows = 'repeat(6, 1fr)';
+// ═══════════════════════════════════════
+// BUILD
+// ═══════════════════════════════════════
+function build(){
+  const kp=document.getElementById('keypad');
+  KEYS.forEach(k=>{
+    const btn=document.createElement('button');
+    btn.className='k '+(k.cls||'');
+    if(k.fn) btn.setAttribute('data-fn',k.fn);
+    btn.style.gridColumn=String(k.c);
+    btn.style.gridRow=k.rs?`${k.r}/span ${k.rs}`:String(k.r);
 
-  let col = 1, row = 1;
-
-  KEYS.forEach((k, i) => {
-    if (k.ghost) {
-      // invisible spacer
-      const sp = document.createElement('div');
-      sp.style.gridColumn = `${col}`;
-      sp.style.gridRow = `${row}`;
-      kp.appendChild(sp);
-      col++;
-      if (col > 7) { col = 1; row++; }
-      return;
+    if(k.cls!=='ghost'){
+      const len=(k.ml||'').length;
+      const ml=document.createElement('span');
+      ml.className='ml'+(len>4?' sm':'')+(len>6?' xs':'');
+      ml.textContent=k.ml||'';
+      btn.appendChild(ml);
+      if(k.fl){const e=document.createElement('span');e.className='fl';e.textContent=k.fl;btn.appendChild(e);}
+      if(k.gl){const e=document.createElement('span');e.className='gl';e.textContent=k.gl;btn.appendChild(e);}
+      btn.addEventListener('pointerdown',e=>{e.preventDefault();handleKey(k);});
     }
-
-    const btn = document.createElement('button');
-    btn.className = 'k ' + (k.cls || '');
-    btn.setAttribute('data-fn', k.fn || '');
-
-    // Main label
-    const mlEl = document.createElement('span');
-    mlEl.className = 'ml' + (k.ml.length > 4 ? ' small' : '') + (k.ml.length > 6 ? ' tiny' : '');
-    mlEl.textContent = k.ml;
-    btn.appendChild(mlEl);
-
-    // f label (bottom-left)
-    if (k.fl) {
-      const fl = document.createElement('span');
-      fl.className = 'fl';
-      fl.textContent = k.fl;
-      btn.appendChild(fl);
-    }
-    // g label (bottom-right)
-    if (k.gl) {
-      const gl = document.createElement('span');
-      gl.className = 'gl';
-      gl.textContent = k.gl;
-      btn.appendChild(gl);
-    }
-
-    // Grid position
-    const span = k.span || 1;
-    btn.style.gridColumn = span > 1 ? `${col} / span ${span}` : `${col}`;
-    btn.style.gridRow = `${row}`;
-
-    btn.addEventListener('pointerdown', e => { e.preventDefault(); handleKey(k); });
-
     kp.appendChild(btn);
-
-    col += span;
-    if (col > 7) { col = 1; row++; }
   });
 }
 
-// ═══════════════════════════════════════════════
-// DISPLAY
-// ═══════════════════════════════════════════════
-function fmt(n) {
-  if (!isFinite(n)) return isNaN(n) ? 'NaN' : (n > 0 ? '+∞' : '−∞');
-  const abs = Math.abs(n);
-  if (abs !== 0 && (abs >= 1e10 || abs < 1e-7)) {
-    return n.toExponential(5).replace('e+','e').replace('e-','e−');
-  }
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function fmt(n){
+  if(!isFinite(n)) return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
+  const a=Math.abs(n);
+  if(a!==0&&(a>=1e10||a<1e-7)) return n.toExponential(5).replace('e+','e').replace('e-','e−');
   return parseFloat(n.toPrecision(10)).toString();
 }
 
-function render() {
-  const area = document.getElementById('stackArea');
-  area.innerHTML = '';
-
-  // Show 8 levels, level 8 (top) first, level 1 (X) last
-  for (let i = STACK_SIZE - 1; i >= 0; i--) {
-    const row = document.createElement('div');
-    row.className = 'stack-row' + (i === 0 ? ' x-row' : '');
-
-    const lbl = document.createElement('span');
-    lbl.className = 's-label';
-    lbl.textContent = LABELS[i];
-
-    const val = document.createElement('span');
-    val.className = 's-value';
-    val.textContent = (i === 0 && isTyping) ? (inputStr || '0') : fmt(stack[i]);
-
-    row.appendChild(lbl);
-    row.appendChild(val);
-    area.appendChild(row);
+function render(){
+  const area=document.getElementById('stackRows');
+  area.innerHTML='';
+  for(let i=SZ-1;i>=0;i--){
+    const row=document.createElement('div');
+    row.className='sr'+(i===0?' xreg':'');
+    const lbl=document.createElement('span');lbl.className='sr-lbl';lbl.textContent=LBLS[i];
+    const val=document.createElement('span');val.className='sr-val';
+    val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
+    row.appendChild(lbl);row.appendChild(val);area.appendChild(row);
   }
-
-  // Shift indicator
-  const si = document.getElementById('shiftInd');
-  si.textContent = shiftMode === 1 ? 'f' : shiftMode === 2 ? 'g' : '—';
-  si.className = 'shift-indicator ' + (shiftMode === 1 ? 'f-active' : shiftMode === 2 ? 'g-active' : 'none');
-
-  // Annunciators
-  document.getElementById('annF').className = 'ann' + (shiftMode === 1 ? ' f-on' : '');
-  document.getElementById('annG').className = 'ann' + (shiftMode === 2 ? ' g-on' : '');
-  document.getElementById('annMem').className = 'ann' + (memUsed ? ' on' : '');
-
-  // Highlight shift keys
-  document.querySelectorAll('.k').forEach(btn => {
-    btn.classList.remove('f-lit','g-lit');
-    if (shiftMode === 1 && btn.getAttribute('data-fn') === 'shiftF') btn.classList.add('f-lit');
-    if (shiftMode === 2 && btn.getAttribute('data-fn') === 'shiftG') btn.classList.add('g-lit');
-  });
-
-  document.getElementById('angleBtn').textContent = angleMode;
+  // shift badge
+  const sb=document.getElementById('shiftBadge');
+  if(shiftMode===1){sb.textContent='f';sb.className='shift-badge f';}
+  else if(shiftMode===2){sb.textContent='g';sb.className='shift-badge g';}
+  else{sb.textContent='—';sb.className='shift-badge none';}
+  // annunciators
+  document.getElementById('annF').className='ann'+(shiftMode===1?' fon':'');
+  document.getElementById('annG').className='ann'+(shiftMode===2?' gon':'');
+  document.getElementById('annM').className='ann'+(memUsed?' on':'');
+  // angle
+  document.getElementById('angBtn').textContent=angleMode;
+  // shift glow
+  document.querySelectorAll('.k').forEach(b=>{b.classList.remove('f-lit','g-lit');});
+  if(shiftMode===1) document.querySelectorAll('[data-fn="shiftF"]').forEach(b=>b.classList.add('f-lit'));
+  if(shiftMode===2) document.querySelectorAll('[data-fn="shiftG"]').forEach(b=>b.classList.add('g-lit'));
 }
 
-function showErr(msg) {
-  const el = document.getElementById('errLine');
-  el.textContent = msg;
-  setTimeout(() => el.textContent = '', 2200);
+function showErr(m){
+  const el=document.getElementById('errLine');el.textContent=m;
+  setTimeout(()=>el.textContent='',2500);
 }
-function clearErr() { document.getElementById('errLine').textContent = ''; }
+function clearErr(){document.getElementById('errLine').textContent='';}
 
-// ═══════════════════════════════════════════════
-// STACK HELPERS
-// ═══════════════════════════════════════════════
-function lift()  { for (let i = STACK_SIZE-1; i > 0; i--) stack[i] = stack[i-1]; }
-function drop()  { for (let i = 0; i < STACK_SIZE-1; i++) stack[i] = stack[i+1]; }
-function pushX(v){ lift(); stack[0] = v; }
-
-function saveLast() { lastX = stack[0]; }
-
-function commit() {
-  if (!isTyping) return;
-  const v = parseFloat(inputStr);
-  stack[0] = isNaN(v) ? 0 : v;
-  isTyping = false;
-  inputStr = '';
+// ═══════════════════════════════════════
+// STACK
+// ═══════════════════════════════════════
+function lift(){for(let i=SZ-1;i>0;i--) stack[i]=stack[i-1];}
+function drop(){for(let i=0;i<SZ-1;i++) stack[i]=stack[i+1];}
+function pushX(v){lift();stack[0]=v;}
+function saveLast(){lastX=stack[0];}
+function commit(){
+  if(!isTyping)return;
+  const v=parseFloat(inputStr);
+  stack[0]=isNaN(v)?0:v;
+  isTyping=false;inputStr='';
 }
-
-// ═══════════════════════════════════════════════
-// ANGLE
-// ═══════════════════════════════════════════════
-function toRad(x) { return angleMode === 'DEG' ? x * Math.PI / 180 : x; }
-function fromRad(x){ return angleMode === 'DEG' ? x * 180 / Math.PI : x; }
-function toggleAngle() {
-  angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
-  render();
+function dgt(d){
+  if(!isTyping){lift();inputStr='';isTyping=true;}
+  inputStr+=d;
 }
+function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
+function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
+function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
 
-// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════
 // ACTIONS
-// ═══════════════════════════════════════════════
-const actions = {
-  // Shift
-  shiftF() { shiftMode = shiftMode === 1 ? 0 : 1; },
-  shiftG() { shiftMode = shiftMode === 2 ? 0 : 2; },
-
-  // Digits
-  d0(){ dgt('0'); }, d1(){ dgt('1'); }, d2(){ dgt('2'); }, d3(){ dgt('3'); },
-  d4(){ dgt('4'); }, d5(){ dgt('5'); }, d6(){ dgt('6'); }, d7(){ dgt('7'); },
-  d8(){ dgt('8'); }, d9(){ dgt('9'); },
-  dot(){
-    if (!isTyping) { lift(); inputStr = ''; isTyping = true; }
-    if (!inputStr.includes('.')) { inputStr = (inputStr || '0') + '.'; }
-  },
-  eex(){
-    if (!isTyping) { lift(); inputStr = '1'; isTyping = true; }
-    if (!inputStr.includes('e') && !inputStr.includes('E')) inputStr += 'e';
-  },
-
-  // Stack
-  enter() {
-    commit();
-    const x = stack[0]; lift(); stack[0] = x;
-  },
-  rollDn() {
-    commit();
-    const x = stack[0]; drop(); stack[STACK_SIZE-1] = x;
-  },
-  rollUp() {
-    commit();
-    const top = stack[STACK_SIZE-1];
-    for (let i = STACK_SIZE-1; i > 0; i--) stack[i] = stack[i-1];
-    stack[0] = top;
-  },
-  swap() { commit(); [stack[0],stack[1]] = [stack[1],stack[0]]; },
-  bksp() {
-    if (isTyping) { inputStr = inputStr.slice(0,-1); }
-    else { drop(); }
-  },
-  clearAll() { stack.fill(0); inputStr=''; isTyping=false; },
-  clearStk() { stack.fill(0); inputStr=''; isTyping=false; },
-  clx() { commit(); stack[0] = 0; },
-  lastx() { pushX(lastX); },
-
-  // Arithmetic
-  add() { binaryOp((y,x) => y+x); },
-  sub() { binaryOp((y,x) => y-x); },
-  mul() { binaryOp((y,x) => y*x); },
-  div() { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return y/x; }); },
-  mod() { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return y%x; }); },
-
-  // Math
-  sqrt()  { unaryOp(x => { if(x<0){showErr('DOMAIN'); return NaN;} return Math.sqrt(x); }); },
-  sq()    { unaryOp(x => x*x); },
-  expx()  { unaryOp(x => Math.exp(x)); },
-  ln()    { unaryOp(x => { if(x<=0){showErr('DOMAIN'); return NaN;} return Math.log(x); }); },
-  pow10() { unaryOp(x => Math.pow(10,x)); },
-  log()   { unaryOp(x => { if(x<=0){showErr('DOMAIN'); return NaN;} return Math.log10(x); }); },
-  yx()    { binaryOp((y,x) => Math.pow(y,x)); },
-  xrty()  { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return Math.pow(y,1/x); }); },
-  recip() { unaryOp(x => { if(x===0){showErr('DIV/0'); return NaN;} return 1/x; }); },
-  chs()   {
-    if (isTyping) {
-      if (inputStr.startsWith('-')) inputStr = inputStr.slice(1);
-      else inputStr = '-' + inputStr;
-    } else { stack[0] = -stack[0]; }
-  },
-  pi()    { pushX(Math.PI); },
-  fact()  { unaryOp(x => {
-    if (x < 0 || x !== Math.floor(x)) { showErr('DOMAIN'); return NaN; }
-    if (x > 170) { showErr('OVERFLOW'); return Infinity; }
-    let r = 1; for (let i = 2; i <= x; i++) r *= i; return r;
-  }); },
-  abs()   { unaryOp(x => Math.abs(x)); },
-  intg()  { unaryOp(x => Math.trunc(x)); },
-  frac()  { unaryOp(x => x - Math.trunc(x)); },
-  rnd()   { unaryOp(x => parseFloat(x.toPrecision(6))); },
-
-  // Trig
-  sin()  { unaryOp(x => Math.sin(toRad(x))); },
-  cos()  { unaryOp(x => Math.cos(toRad(x))); },
-  tan()  { unaryOp(x => Math.tan(toRad(x))); },
-  asin() { unaryOp(x => { if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.asin(x)); }); },
-  acos() { unaryOp(x => { if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.acos(x)); }); },
-  atan() { unaryOp(x => fromRad(Math.atan(x))); },
-
-  // Memory
-  sto() { commit(); memory = stack[0]; memUsed = true; },
-  rcl() { commit(); pushX(memory); },
-
-  // Percentage helpers
-  pct()  { binaryOp((y,x) => y * x / 100); },
-  dpct() { binaryOp((y,x) => { if(y===0){showErr('DIV/0');return NaN;} return (x-y)/y*100; }); },
-  pctt() { binaryOp((y,x) => y===0?NaN:x/y*100); },
+// ═══════════════════════════════════════
+const A={
+  shiftF(){shiftMode=shiftMode===1?0:1;},
+  shiftG(){shiftMode=shiftMode===2?0:2;},
+  d0(){dgt('0');},'d1'(){dgt('1');},'d2'(){dgt('2');},'d3'(){dgt('3');},'d4'(){dgt('4');},
+  d5(){dgt('5');},'d6'(){dgt('6');},'d7'(){dgt('7');},'d8'(){dgt('8');},'d9'(){dgt('9');},
+  dot(){if(!isTyping){lift();inputStr='0';isTyping=true;}if(!inputStr.includes('.'))inputStr+='.';},
+  eex(){if(!isTyping){lift();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
+  chs(){if(isTyping){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;}else stack[0]=-stack[0];},
+  pi(){pushX(Math.PI);},
+  enter(){commit();const x=stack[0];lift();stack[0]=x;},
+  rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x;},
+  rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t;},
+  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]];},
+  clx(){commit();stack[0]=0;},
+  bksp(){if(isTyping){inputStr=inputStr.slice(0,-1);}else{drop();}},
+  clearAll(){stack.fill(0);inputStr='';isTyping=false;},
+  lastx(){pushX(lastX);},
+  add(){B((y,x)=>y+x);},sub(){B((y,x)=>y-x);},mul(){B((y,x)=>y*x);},
+  div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
+  mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
+  sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
+  sq(){U(x=>x*x);},
+  expx(){U(x=>Math.exp(x));},
+  ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);});},
+  pow10(){U(x=>Math.pow(10,x));},
+  log(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log10(x);});},
+  yx(){B((y,x)=>Math.pow(y,x));},
+  xrty(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return Math.pow(y,1/x);});},
+  recip(){U(x=>{if(x===0){showErr('DIV BY 0');return NaN;}return 1/x;});},
+  fact(){U(x=>{if(x<0||x!==Math.floor(x)){showErr('DOMAIN');return NaN;}if(x>170){showErr('OVERFLOW');return Infinity;}let r=1;for(let i=2;i<=x;i++)r*=i;return r;});},
+  abs(){U(x=>Math.abs(x));},
+  intg(){U(x=>Math.trunc(x));},
+  frac(){U(x=>x-Math.trunc(x));},
+  rnd(){U(x=>parseFloat(x.toPrecision(6)));},
+  sin(){U(x=>Math.sin(toRad(x)));},
+  cos(){U(x=>Math.cos(toRad(x)));},
+  tan(){U(x=>Math.tan(toRad(x)));},
+  asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));});},
+  acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));});},
+  atan(){U(x=>fromRad(Math.atan(x)));},
+  sto(){commit();memory=stack[0];memUsed=true;},
+  rcl(){commit();pushX(memory);},
+  mplus(){commit();memory+=stack[0];memUsed=true;},
+  mminus(){commit();memory-=stack[0];memUsed=true;},
+  pct(){B((y,x)=>y*x/100);},
+  dpct(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
 };
 
-function binaryOp(fn) {
-  commit(); saveLast();
-  const x = stack[0], y = stack[1];
-  const r = fn(y, x);
-  if (r !== undefined && !isNaN(r)) { drop(); stack[0] = r; }
-}
+function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;}}
+function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r;}
 
-function unaryOp(fn) {
-  commit(); saveLast();
-  const r = fn(stack[0]);
-  if (r !== undefined && !isNaN(r)) stack[0] = r;
-}
-
-function dgt(d) {
-  if (!isTyping) { lift(); inputStr = ''; isTyping = true; }
-  inputStr += d;
-}
-
-// ═══════════════════════════════════════════════
-// KEY DISPATCH
-// ═══════════════════════════════════════════════
-function handleKey(k) {
+// ═══════════════════════════════════════
+// DISPATCH
+// ═══════════════════════════════════════
+function handleKey(k){
   clearErr();
-  let fnName;
-
-  if (shiftMode === 1) {
-    fnName = k.fFn || k.fn;
-    if (k.fn !== 'shiftF' && k.fn !== 'shiftG') shiftMode = 0;
-  } else if (shiftMode === 2) {
-    fnName = k.gFn || k.fn;
-    if (k.fn !== 'shiftF' && k.fn !== 'shiftG') shiftMode = 0;
-  } else {
-    fnName = k.fn;
-  }
-
-  if (fnName && actions[fnName]) {
-    actions[fnName]();
-  }
-
+  const isShift=(k.fn==='shiftF'||k.fn==='shiftG');
+  let fn;
+  if(shiftMode===1&&!isShift){fn=k.fFn||k.fn;shiftMode=0;}
+  else if(shiftMode===2&&!isShift){fn=k.gFn||k.fn;shiftMode=0;}
+  else fn=k.fn;
+  if(fn&&A[fn])A[fn]();
   render();
 }
 
-// ═══════════════════════════════════════════════
-// KEYBOARD SUPPORT (desktop/Mac testing)
-// ═══════════════════════════════════════════════
-document.addEventListener('keydown', e => {
-  const map = {
-    'Enter':'enter','Backspace':'bksp','Escape':'clearAll',
+// ═══════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  const map={Enter:'enter',Backspace:'bksp',Escape:'clearAll',
     '+':'add','-':'sub','*':'mul','/':'div',
     '0':'d0','1':'d1','2':'d2','3':'d3','4':'d4',
     '5':'d5','6':'d6','7':'d7','8':'d8','9':'d9',
-    '.':'dot','E':'eex','e':'eex',
-    's':'sin','c':'cos','t':'tan','l':'ln','L':'log',
-    'p':'pi','q':'sqrt','r':'rollDn','x':'swap',
-    'n':'chs','!':'fact','a':'abs',
+    '.':'dot','e':'eex','E':'eex','s':'sin','c':'cos',
+    't':'tan','l':'ln','L':'log','p':'pi','q':'sqrt',
+    'r':'rollDn','x':'swap','n':'chs','a':'abs',
   };
-  if (map[e.key]) {
-    e.preventDefault();
-    clearErr();
-    const fn = map[e.key];
-    if (actions[fn]) { actions[fn](); render(); }
-  }
+  if(map[e.key]){e.preventDefault();clearErr();if(A[map[e.key]]){A[map[e.key]]();render();}}
 });
 
-// ═══════════════════════════════════════════════
+// ═══════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════
-buildKeypad();
-render();
+// ═══════════════════════════════════════
+build();render();
 </script>
 </body>
 </html>
