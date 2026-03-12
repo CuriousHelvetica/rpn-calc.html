@@ -2,705 +2,791 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="RPN Calc">
-<title>RPN Scientific Calculator</title>
+<meta name="apple-mobile-web-app-title" content="HP-15C">
+<title>HP-15C RPN</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@600&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --bg: #1a1a1a;
-    --body-bg: #111;
-    --calc-bg: #222;
-    --calc-border: #3a3a3a;
-    --display-bg: #0d0d0d;
-    --amber: #ffb000;
-    --amber-dim: #7a5200;
-    --amber-glow: rgba(255,176,0,0.15);
-    --btn-sci: #1e2a3a;
-    --btn-sci-border: #2e4a6a;
-    --btn-sci-text: #6ab0ff;
-    --btn-op: #2a1e1e;
-    --btn-op-border: #6a2e2e;
-    --btn-op-text: #ff8080;
-    --btn-num: #252525;
-    --btn-num-border: #404040;
-    --btn-num-text: #e0e0e0;
-    --btn-enter: #1a2e1a;
-    --btn-enter-border: #2e6a2e;
-    --btn-enter-text: #80ff80;
-    --btn-mem: #2a2a1e;
-    --btn-mem-border: #5a5a2e;
-    --btn-mem-text: #ffff80;
-    --shadow: 0 8px 32px rgba(0,0,0,0.7);
-  }
+:root {
+  --body-bg: #1c1c1e;
+  --calc-bg: #2a2a2e;
+  --display-bg: #0a0f08;
+  --amber: #c8e88a;
+  --amber-bright: #e8ffaa;
+  --amber-dim: #5a7040;
+  --amber-glow: rgba(180,230,100,0.12);
+  --f-color: #f0a020;    /* gold f-shift */
+  --g-color: #60b8e0;    /* blue g-shift */
+  --btn-main: #3a3a40;
+  --btn-main-border: #555560;
+  --btn-num: #28282e;
+  --btn-num-border: #444450;
+  --btn-enter: #222230;
+  --btn-enter-border: #3a3a60;
+  --btn-op: #302830;
+  --btn-op-border: #504050;
+  --shadow: 0 12px 40px rgba(0,0,0,0.8);
+}
 
-  html, body {
-    height: 100%;
-    background: var(--body-bg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Share Tech Mono', monospace;
-    overflow: hidden;
-  }
+html, body {
+  width: 100%; height: 100%;
+  background: var(--body-bg);
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+  touch-action: manipulation;
+}
 
-  .calculator {
-    width: min(400px, 100vw);
-    max-height: 100vh;
-    background: var(--calc-bg);
-    border: 1px solid var(--calc-border);
-    border-radius: 16px;
-    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    overflow: hidden;
-    position: relative;
-  }
+/* Force landscape */
+.portrait-warning {
+  display: none;
+  position: fixed; inset: 0;
+  background: #111;
+  color: #888;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 999;
+}
+.portrait-warning .icon { font-size: 40px; }
 
-  /* Subtle texture */
-  .calculator::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(255,255,255,0.01) 2px,
-      rgba(255,255,255,0.01) 4px
-    );
-    pointer-events: none;
-    border-radius: 16px;
-  }
+@media (orientation: portrait) {
+  .portrait-warning { display: flex; }
+  .calculator { display: none; }
+}
 
-  .brand {
-    padding: 10px 16px 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+.calculator {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  padding: env(safe-area-inset-top, 4px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 4px) env(safe-area-inset-left, 8px);
+  gap: 8px;
+  background: var(--calc-bg);
+}
 
-  .brand-name {
-    font-family: 'Orbitron', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: var(--amber-dim);
-    text-transform: uppercase;
-  }
+/* ── DISPLAY PANEL (left column) ── */
+.display-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 200px;
+  flex-shrink: 0;
+  background: var(--display-bg);
+  border-radius: 10px;
+  border: 1px solid #1a2010;
+  box-shadow: inset 0 2px 16px rgba(0,0,0,0.9), 0 0 30px var(--amber-glow);
+  padding: 8px 10px;
+  overflow: hidden;
+}
 
-  .mode-indicator {
-    font-size: 10px;
-    color: var(--amber-dim);
-    letter-spacing: 1px;
-  }
+.brand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.brand {
+  font-family: 'Orbitron', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--amber-dim);
+}
+.shift-indicator {
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  transition: all 0.1s;
+  min-width: 22px;
+  text-align: center;
+}
+.shift-indicator.f-active { color: var(--f-color); border-color: var(--f-color); background: rgba(240,160,32,0.1); }
+.shift-indicator.g-active { color: var(--g-color); border-color: var(--g-color); background: rgba(96,184,224,0.1); }
+.shift-indicator.none { color: var(--amber-dim); border-color: transparent; }
 
-  /* DISPLAY */
-  .display {
-    margin: 0 12px 8px;
-    background: var(--display-bg);
-    border-radius: 8px;
-    border: 1px solid #1a1a0a;
-    box-shadow: inset 0 2px 12px rgba(0,0,0,0.8), 0 0 20px var(--amber-glow);
-    padding: 10px 14px;
-    overflow: hidden;
-  }
+.stack-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+}
 
-  .stack-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    margin-bottom: 6px;
-  }
+.stack-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 1px 0;
+  border-bottom: 1px solid rgba(180,230,100,0.04);
+}
+.stack-row:last-child { border-bottom: none; }
 
-  .stack-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 1px 0;
-    border-bottom: 1px solid rgba(255,176,0,0.05);
-  }
+.s-label {
+  font-size: 8px;
+  color: var(--amber-dim);
+  width: 14px;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+.s-value {
+  font-size: 11px;
+  color: var(--amber-dim);
+  text-align: right;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.55;
+}
 
-  .stack-row:last-child { border-bottom: none; }
+.stack-row.x-row .s-label { color: var(--amber); font-size: 9px; }
+.stack-row.x-row .s-value { color: var(--amber-bright); font-size: 15px; opacity: 1; font-weight: bold; }
 
-  .stack-label {
-    font-size: 9px;
-    color: var(--amber-dim);
-    width: 20px;
-    flex-shrink: 0;
-    letter-spacing: 1px;
-    opacity: 0.7;
-  }
+.display-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(180,230,100,0.08);
+}
+.annunciators {
+  display: flex; gap: 4px;
+}
+.ann {
+  font-size: 7px;
+  color: var(--amber-dim);
+  opacity: 0.4;
+  letter-spacing: 0.5px;
+  transition: opacity 0.1s, color 0.1s;
+}
+.ann.on { opacity: 1; color: var(--amber); }
+.ann.f-on { opacity: 1; color: var(--f-color); }
+.ann.g-on { opacity: 1; color: var(--g-color); }
 
-  .stack-value {
-    font-size: 13px;
-    color: var(--amber-dim);
-    text-align: right;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.6;
-    letter-spacing: 0.5px;
-  }
+.angle-btn {
+  font-size: 8px;
+  color: var(--amber-dim);
+  border: 1px solid var(--amber-dim);
+  border-radius: 3px;
+  padding: 1px 5px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.1s, border-color 0.1s;
+}
+.angle-btn:active { color: var(--amber); border-color: var(--amber); }
 
-  .stack-row.active .stack-label { color: var(--amber); opacity: 1; }
-  .stack-row.active .stack-value { color: var(--amber); opacity: 1; font-size: 18px; }
+.error-line {
+  font-size: 9px;
+  color: #ff6060;
+  min-height: 11px;
+  text-align: right;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
 
-  .display-bottom {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 4px;
-  }
+/* ── KEYPAD PANEL (right, 7 cols × 5 rows) ── */
+.keypad {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: 5px;
+  padding: 4px 0;
+}
 
-  .mem-indicator {
-    font-size: 9px;
-    color: var(--amber-dim);
-    letter-spacing: 1px;
-  }
+/* Base button */
+.k {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #555560;
+  background: linear-gradient(180deg, #424248, #2e2e34);
+  color: #d0d0d8;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  transition: filter 0.06s, transform 0.06s;
+  box-shadow: 0 3px 0 #111, inset 0 1px 0 rgba(255,255,255,0.07);
+  padding: 2px 2px 10px; /* extra bottom for shift labels */
+  overflow: visible;
+}
 
-  .mem-indicator.active { color: #ffff80; }
+.k:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #111;
+  filter: brightness(1.25);
+}
 
-  .angle-mode {
-    font-size: 9px;
-    color: var(--amber-dim);
-    letter-spacing: 1px;
-    cursor: pointer;
-    padding: 2px 6px;
-    border: 1px solid var(--amber-dim);
-    border-radius: 3px;
-    transition: all 0.1s;
-  }
+/* Main label */
+.k .ml {
+  font-size: 11px;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+.k .ml.small { font-size: 9px; }
+.k .ml.tiny  { font-size: 8px; }
 
-  .angle-mode:hover, .angle-mode.active { color: var(--amber); border-color: var(--amber); }
+/* Shift labels below button — absolutely positioned */
+.k .fl, .k .gl {
+  position: absolute;
+  bottom: 2px;
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.3px;
+}
+.k .fl { left: 3px; color: var(--f-color); }
+.k .gl { right: 3px; color: var(--g-color); }
 
-  .error-msg {
-    font-size: 10px;
-    color: #ff6060;
-    text-align: right;
-    min-height: 12px;
-    letter-spacing: 1px;
-  }
+/* Button variants */
+.k.num {
+  background: linear-gradient(180deg, #323238, #222228);
+  border-color: #484850;
+  color: #e8e8f0;
+  font-size: 14px;
+  font-weight: bold;
+}
+.k.enter-btn {
+  background: linear-gradient(180deg, #28283a, #1a1a2a);
+  border-color: #4040608;
+  color: #a0a0d0;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.k.op {
+  background: linear-gradient(180deg, #38282e, #26181e);
+  border-color: #584048;
+  color: #e0a0b0;
+}
+.k.shift-f {
+  background: linear-gradient(180deg, #4a3810, #342808);
+  border-color: #806020;
+  color: var(--f-color);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.k.shift-g {
+  background: linear-gradient(180deg, #102838, #081820);
+  border-color: #204060;
+  color: var(--g-color);
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.k.clr-btn {
+  background: linear-gradient(180deg, #38201a, #261210);
+  border-color: #603028;
+  color: #ff8070;
+}
+.k.mem-btn {
+  background: linear-gradient(180deg, #28280a, #1a1a04);
+  border-color: #505018;
+  color: #d0d060;
+}
 
-  /* BUTTONS */
-  .btn-grid {
-    padding: 4px 10px 12px;
-    display: grid;
-    gap: 5px;
-  }
-
-  /* Row layout: 5 cols */
-  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
-  .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-
-  .btn {
-    appearance: none;
-    border: none;
-    cursor: pointer;
-    border-radius: 6px;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    padding: 0;
-    height: 42px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    line-height: 1.1;
-    transition: filter 0.08s, transform 0.08s, box-shadow 0.08s;
-    position: relative;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-  }
-
-  .btn:active {
-    transform: translateY(1px);
-    filter: brightness(1.3);
-    box-shadow: none !important;
-  }
-
-  .btn .sub { font-size: 8px; opacity: 0.6; margin-top: 1px; }
-
-  /* Num */
-  .btn-num {
-    background: linear-gradient(180deg, #2e2e2e, #1e1e1e);
-    border: 1px solid var(--btn-num-border);
-    color: var(--btn-num-text);
-    box-shadow: 0 3px 0 #111, inset 0 1px 0 rgba(255,255,255,0.06);
-    font-size: 16px;
-    font-weight: bold;
-  }
-
-  .btn-num.zero { grid-column: span 2; }
-
-  /* Enter - tall */
-  .btn-enter {
-    background: linear-gradient(180deg, #223322, #162216);
-    border: 1px solid var(--btn-enter-border);
-    color: var(--btn-enter-text);
-    box-shadow: 0 3px 0 #0a150a, inset 0 1px 0 rgba(255,255,255,0.05);
-    font-size: 13px;
-    letter-spacing: 1px;
-    grid-row: span 2;
-    height: 89px;
-  }
-
-  /* Ops */
-  .btn-op {
-    background: linear-gradient(180deg, #2e1e1e, #1e1212);
-    border: 1px solid var(--btn-op-border);
-    color: var(--btn-op-text);
-    box-shadow: 0 3px 0 #110808, inset 0 1px 0 rgba(255,255,255,0.05);
-  }
-
-  /* Sci */
-  .btn-sci {
-    background: linear-gradient(180deg, #1a2535, #101820);
-    border: 1px solid var(--btn-sci-border);
-    color: var(--btn-sci-text);
-    box-shadow: 0 3px 0 #080f18, inset 0 1px 0 rgba(255,255,255,0.05);
-    font-size: 10px;
-  }
-
-  /* Mem */
-  .btn-mem {
-    background: linear-gradient(180deg, #252515, #181810);
-    border: 1px solid var(--btn-mem-border);
-    color: var(--btn-mem-text);
-    box-shadow: 0 3px 0 #0e0e08, inset 0 1px 0 rgba(255,255,255,0.05);
-    font-size: 10px;
-  }
-
-  /* Clear / Stack ops */
-  .btn-clr {
-    background: linear-gradient(180deg, #2a1515, #1a0a0a);
-    border: 1px solid #6a1a1a;
-    color: #ff6060;
-    box-shadow: 0 3px 0 #100505, inset 0 1px 0 rgba(255,255,255,0.05);
-    font-size: 11px;
-  }
-
-  .btn-stack {
-    background: linear-gradient(180deg, #202020, #141414);
-    border: 1px solid #404040;
-    color: #aaa;
-    box-shadow: 0 3px 0 #0a0a0a, inset 0 1px 0 rgba(255,255,255,0.05);
-    font-size: 10px;
-  }
-
-  .divider {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #333, transparent);
-    margin: 2px 10px;
-  }
+/* active shift highlight */
+.k.f-lit {
+  background: linear-gradient(180deg, #5a4010, #3a2808) !important;
+  border-color: #f0a020 !important;
+  box-shadow: 0 0 8px rgba(240,160,32,0.4), 0 3px 0 #111 !important;
+}
+.k.g-lit {
+  background: linear-gradient(180deg, #102840, #081820) !important;
+  border-color: #60b8e0 !important;
+  box-shadow: 0 0 8px rgba(96,184,224,0.4), 0 3px 0 #111 !important;
+}
 </style>
 </head>
 <body>
+
+<div class="portrait-warning">
+  <div class="icon">⟳</div>
+  <div>Rotate to landscape to use HP-15C</div>
+</div>
+
 <div class="calculator">
-  <div class="brand">
-    <span class="brand-name">HP·RPN·SCI</span>
-    <span class="mode-indicator">8-LEVEL STACK</span>
+
+  <!-- LEFT: Display -->
+  <div class="display-panel">
+    <div class="brand-row">
+      <span class="brand">HP·15C</span>
+      <span class="shift-indicator none" id="shiftInd">—</span>
+    </div>
+
+    <div class="stack-area" id="stackArea"></div>
+
+    <div class="display-footer">
+      <div class="annunciators">
+        <span class="ann" id="annUser">USER</span>
+        <span class="ann" id="annF">f</span>
+        <span class="ann" id="annG">g</span>
+        <span class="ann" id="annMem">M</span>
+      </div>
+      <span class="angle-btn" id="angleBtn" onclick="toggleAngle()">DEG</span>
+    </div>
+    <div class="error-line" id="errLine"></div>
   </div>
 
-  <div class="display">
-    <div class="stack-container" id="stackDisplay"></div>
-    <div class="display-bottom">
-      <span class="mem-indicator" id="memIndicator">MEM: —</span>
-      <span class="angle-mode" id="angleToggle" onclick="toggleAngle()">DEG</span>
-    </div>
-    <div class="error-msg" id="errorMsg"></div>
-  </div>
+  <!-- RIGHT: Keypad — 7×5 grid matching HP 15C layout -->
+  <!--
+    HP 15C row layout (top to bottom):
+    Row 1: √x  e^x  10^x  y^x  1/x  CHS  7  (7 keys)   — but 15c has 5 top + 5 num area
+    Actually 15C is 5 columns × 7 rows conceptually. We map to 7 cols × 5 rows (landscape).
 
-  <div class="btn-grid">
-    <!-- Row 1: Sci functions -->
-    <div class="row">
-      <button class="btn btn-sci" onclick="sci('sin')">SIN<span class="sub">asin</span></button>
-      <button class="btn btn-sci" onclick="sci('cos')">COS<span class="sub">acos</span></button>
-      <button class="btn btn-sci" onclick="sci('tan')">TAN<span class="sub">atan</span></button>
-      <button class="btn btn-sci" onclick="sci('log')">LOG<span class="sub">10^x</span></button>
-      <button class="btn btn-sci" onclick="sci('ln')">LN<span class="sub">e^x</span></button>
-    </div>
-    <!-- Row 2: More sci -->
-    <div class="row">
-      <button class="btn btn-sci" onclick="sci('sqrt')">√x<span class="sub">x²</span></button>
-      <button class="btn btn-sci" onclick="sci('xrty')">x√y<span class="sub">xʸ</span></button>
-      <button class="btn btn-sci" onclick="sci('log')">LOG<span class="sub">10^x</span></button>
-      <button class="btn btn-sci" onclick="sci('ln')">LN<span class="sub">e^x</span></button>
-      <button class="btn btn-stack" onclick="stackRoll()">R↓</button>
-    </div>
+    Our mapping (7 cols × 5 rows):
+    Row 1: [f]  [g]  [STO] [RCL] [R↓] [X⇄Y] [BACK]
+    Row 2: [√x] [e^x][10^x][y^x] [1/x] [CHS] [÷]
+    Row 3: [SIN][COS][TAN] [LOG] [LN]  [EEX] [×]
+    Row 4: [7]  [8]  [9]   [x!]  [ABS] [LAST][−]
+    Row 5: [4]  [5]  [6]   [π]   [RND] [ENTER span2] [+]  -- ENTER spans 2? no, 7 cols
+    Actually keep clean 7×5:
+    Row 5: [4]  [5]  [6]   [π]   [RND] [+]  [ENTER]
+    Row 6: [1]  [2]  [3]   [0]   [.]   [−]  [ENTER cont]
+    -- That's 6 rows. Let's do 5 rows with ENTER spanning rows 5-6? No, we only have 5 rows.
+    
+    Final clean 7 cols × 5 rows:
+    R1: f      g      STO    RCL    R↓     X⇄Y   CLR
+    R2: √x     e^x    10^x   y^x    1/x    CHS    ÷
+    R3: SIN    COS    TAN    LOG    LN     EEX    ×
+    R4: 7      8      9      x!     ABS    LASTx  −
+    R5: 4      5      6      π      RND    ENTER  +
+    ... but we need 0,1,2,3,. — 5 num keys missing
+    
+    Better: use 8 cols? Or rethink.
+    
+    Let's do 7 cols × 6 rows with smaller buttons? Or keep 5 rows but use col 7 for all ops:
+    Actually let's do the classic HP approach: digits take bottom 3 rows left side:
+    
+    R1: f    g    STO  RCL  R↓   X⇄Y  CLR
+    R2: √x   e^x  10^x y^x  1/x  CHS  ÷
+    R3: SIN  COS  TAN  LOG  LN   EEX  ×
+    R4: 7    8    9    x!   ABS  LASTx −
+    R5: 4    5    6    π    RND  ENTER(span rows 5) +  <-- ENTER wide?
+    
+    We have 5 rows and need: 0,1,2,3,4,5,6,7,8,9,. = 11 digit/dot keys
+    Can't fit without 6 rows. So let's do 6 rows:
+    (grid will be 7 cols × 6 rows, buttons will be shorter)
+  -->
 
-    <div class="divider"></div>
+  <div class="keypad" id="keypad"></div>
 
-    <!-- Row 3: Mem + stack ops -->
-    <div class="row">
-      <button class="btn btn-mem" onclick="memSto()">STO</button>
-      <button class="btn btn-mem" onclick="memRcl()">RCL</button>
-      <button class="btn btn-stack" onclick="stackSwap()">X↔Y</button>
-      <button class="btn btn-clr" onclick="stackDrop()">DROP</button>
-      <button class="btn btn-clr" onclick="clearAll()">CLR</button>
-    </div>
-
-    <div class="divider"></div>
-
-    <!-- Rows 4-7: main numpad area — single CSS grid spanning all rows -->
-    <div style="display:grid; grid-template-columns: repeat(5,1fr); grid-template-rows: repeat(4, 42px); gap:5px;">
-      <!-- Row 4 -->
-      <button class="btn btn-clr" onclick="backspace()" style="grid-column:1;grid-row:1">⌫</button>
-      <button class="btn btn-op"  onclick="op('/')"     style="grid-column:2;grid-row:1">÷</button>
-      <button class="btn btn-op"  onclick="op('*')"     style="grid-column:3;grid-row:1">×</button>
-      <button class="btn btn-op"  onclick="op('-')"     style="grid-column:4;grid-row:1">−</button>
-      <!-- ENTER spans rows 1-2 -->
-      <button class="btn btn-enter" onclick="enterKey()" style="grid-column:5;grid-row:1/3;height:auto">ENTER</button>
-      <!-- Row 5 -->
-      <button class="btn btn-num" onclick="digit('7')"  style="grid-column:1;grid-row:2">7</button>
-      <button class="btn btn-num" onclick="digit('8')"  style="grid-column:2;grid-row:2">8</button>
-      <button class="btn btn-num" onclick="digit('9')"  style="grid-column:3;grid-row:2">9</button>
-      <button class="btn btn-op"  onclick="op('+')"     style="grid-column:4;grid-row:2">+</button>
-      <!-- Row 6 -->
-      <button class="btn btn-num" onclick="digit('4')"  style="grid-column:1;grid-row:3">4</button>
-      <button class="btn btn-num" onclick="digit('5')"  style="grid-column:2;grid-row:3">5</button>
-      <button class="btn btn-num" onclick="digit('6')"  style="grid-column:3;grid-row:3">6</button>
-      <button class="btn btn-op"  onclick="op('%')"     style="grid-column:4;grid-row:3">MOD</button>
-      <!-- Row 7 -->
-      <button class="btn btn-num" onclick="digit('1')"  style="grid-column:1;grid-row:4">1</button>
-      <button class="btn btn-num" onclick="digit('2')"  style="grid-column:2;grid-row:4">2</button>
-      <button class="btn btn-num" onclick="digit('3')"  style="grid-column:3;grid-row:4">3</button>
-      <button class="btn btn-num" onclick="digit('0')"  style="grid-column:4;grid-row:4">0</button>
-      <button class="btn btn-num" onclick="digit('.')"  style="grid-column:5;grid-row:4">.</button>
-    </div>
-    <!-- EEX row -->
-    <div class="row-4" style="grid-template-columns: repeat(5,1fr);">
-      <button class="btn btn-sci" onclick="digit('e')" style="grid-column:span 2">EEX</button>
-      <button class="btn btn-sci" onclick="sci('chs')">+/−</button>
-      <button class="btn btn-sci" onclick="sci('recip')">1/x</button>
-      <button class="btn btn-sci" onclick="sci('pi')">π</button>
-    </div>
-  </div>
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
 const STACK_SIZE = 8;
-let stack = new Array(STACK_SIZE).fill(0);
-let inputStr = '';      // current input being typed
-let isTyping = false;   // are we mid-number entry?
-let shiftActive = false;// for inverse functions (double-tap)
-let angleMode = 'DEG'; // DEG or RAD
-let memory = 0;
-let memUsed = false;
-
+let stack    = new Array(STACK_SIZE).fill(0);
+let inputStr = '';
+let isTyping = false;
+let shiftMode = 0;   // 0=none, 1=f, 2=g
+let angleMode = 'DEG';
+let memory   = 0;
+let memUsed  = false;
+let lastX    = 0;
 const LABELS = ['X','Y','Z','T','5','6','7','8'];
 
-// ── Display ────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// KEYPAD DEFINITION
+// 7 columns × 6 rows
+// Each key: { ml, fl, gl, fn, fFn, gFn, cls }
+// ═══════════════════════════════════════════════
+// fn  = normal action string
+// fFn = f-shift action
+// gFn = g-shift action
+const KEYS = [
+  // Row 1 — shift & stack
+  { ml:'f',       cls:'shift-f',  fn:'shiftF'                            },
+  { ml:'g',       cls:'shift-g',  fn:'shiftG'                            },
+  { ml:'STO',     cls:'',         fn:'sto',    fl:'MATRIX', gl:'DIM'     },
+  { ml:'RCL',     cls:'',         fn:'rcl',    fl:'RESULT', gl:'INDEX'   },
+  { ml:'R↓',      cls:'',         fn:'rollDn', fl:'R↑',     gl:'CLEAR'   , fFn:'rollUp', gFn:'clearStk' },
+  { ml:'X⇄Y',    cls:'',         fn:'swap',   fl:'RND',    gl:'CLx'     , fFn:'rnd',    gFn:'clx'      },
+  { ml:'⌫',       cls:'clr-btn',  fn:'bksp',   fl:'CLEAR',  gl:''        , fFn:'clearAll'               },
+
+  // Row 2 — scientific top
+  { ml:'√x',      cls:'',         fn:'sqrt',   fl:'x²',     gl:'LSTx'    , fFn:'sq',     gFn:'lastx'    },
+  { ml:'eˣ',      cls:'',         fn:'expx',   fl:'LN',     gl:'%'       , fFn:'ln',     gFn:'pct'      },
+  { ml:'10ˣ',     cls:'',         fn:'pow10',  fl:'LOG',    gl:'Δ%'      , fFn:'log',    gFn:'dpct'     },
+  { ml:'yˣ',      cls:'',         fn:'yx',     fl:'x√y',    gl:'%T'      , fFn:'xrty',   gFn:'pctt'     },
+  { ml:'1/x',     cls:'',         fn:'recip',  fl:'x!',     gl:'ABS'     , fFn:'fact',   gFn:'abs'      },
+  { ml:'CHS',     cls:'',         fn:'chs',    fl:'INT',    gl:'FRAC'    , fFn:'intg',   gFn:'frac'     },
+  { ml:'÷',       cls:'op',       fn:'div',    fl:'',       gl:''                                        },
+
+  // Row 3 — trig + log
+  { ml:'SIN',     cls:'',         fn:'sin',    fl:'asin',   gl:'SIN⁻¹'   , fFn:'asin',   gFn:'asin'     },
+  { ml:'COS',     cls:'',         fn:'cos',    fl:'acos',   gl:'COS⁻¹'   , fFn:'acos',   gFn:'acos'     },
+  { ml:'TAN',     cls:'',         fn:'tan',    fl:'atan',   gl:'TAN⁻¹'   , fFn:'atan',   gFn:'atan'     },
+  { ml:'LOG',     cls:'',         fn:'log',    fl:'10ˣ',    gl:''        , fFn:'pow10'                   },
+  { ml:'LN',      cls:'',         fn:'ln',     fl:'eˣ',     gl:''        , fFn:'expx'                    },
+  { ml:'EEX',     cls:'',         fn:'eex',    fl:'π',      gl:''        , fFn:'pi'                      },
+  { ml:'×',       cls:'op',       fn:'mul',    fl:'',       gl:''                                        },
+
+  // Row 4 — 7 8 9 + extras
+  { ml:'7',       cls:'num',      fn:'d7'                                 },
+  { ml:'8',       cls:'num',      fn:'d8'                                 },
+  { ml:'9',       cls:'num',      fn:'d9'                                 },
+  { ml:'x!',      cls:'',         fn:'fact',   fl:'RND',    gl:'INT'     , fFn:'rnd',    gFn:'intg'     },
+  { ml:'ABS',     cls:'',         fn:'abs',    fl:'FRAC',   gl:'LASTx'   , fFn:'frac',   gFn:'lastx'    },
+  { ml:'LSTx',    cls:'',         fn:'lastx',  fl:'',       gl:''                                        },
+  { ml:'−',       cls:'op',       fn:'sub',    fl:'',       gl:''                                        },
+
+  // Row 5 — 4 5 6 + extras
+  { ml:'4',       cls:'num',      fn:'d4'                                 },
+  { ml:'5',       cls:'num',      fn:'d5'                                 },
+  { ml:'6',       cls:'num',      fn:'d6'                                 },
+  { ml:'π',       cls:'',         fn:'pi',     fl:'',       gl:''                                        },
+  { ml:'RND',     cls:'',         fn:'rnd',    fl:'',       gl:''                                        },
+  { ml:'ENTER',   cls:'enter-btn',fn:'enter',  fl:'',       gl:'',       span:2                          },
+  { ml:'+',       cls:'op',       fn:'add',    fl:'',       gl:''                                        },
+
+  // Row 6 — 1 2 3 0 .
+  { ml:'1',       cls:'num',      fn:'d1'                                 },
+  { ml:'2',       cls:'num',      fn:'d2'                                 },
+  { ml:'3',       cls:'num',      fn:'d3'                                 },
+  { ml:'0',       cls:'num',      fn:'d0'                                 },
+  { ml:'·',       cls:'num',      fn:'dot'                                },
+  // col 6-7 for row 6: blank (ENTER took span:2 above) + MOD
+  { ml:'',        cls:'',         fn:null,     ghost:true                 },
+  { ml:'MOD',     cls:'op',       fn:'mod',    fl:'',       gl:''         },
+];
+
+// ═══════════════════════════════════════════════
+// BUILD KEYPAD
+// ═══════════════════════════════════════════════
+function buildKeypad() {
+  const kp = document.getElementById('keypad');
+  kp.style.gridTemplateColumns = 'repeat(7, 1fr)';
+  kp.style.gridTemplateRows = 'repeat(6, 1fr)';
+
+  let col = 1, row = 1;
+
+  KEYS.forEach((k, i) => {
+    if (k.ghost) {
+      // invisible spacer
+      const sp = document.createElement('div');
+      sp.style.gridColumn = `${col}`;
+      sp.style.gridRow = `${row}`;
+      kp.appendChild(sp);
+      col++;
+      if (col > 7) { col = 1; row++; }
+      return;
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'k ' + (k.cls || '');
+    btn.setAttribute('data-fn', k.fn || '');
+
+    // Main label
+    const mlEl = document.createElement('span');
+    mlEl.className = 'ml' + (k.ml.length > 4 ? ' small' : '') + (k.ml.length > 6 ? ' tiny' : '');
+    mlEl.textContent = k.ml;
+    btn.appendChild(mlEl);
+
+    // f label (bottom-left)
+    if (k.fl) {
+      const fl = document.createElement('span');
+      fl.className = 'fl';
+      fl.textContent = k.fl;
+      btn.appendChild(fl);
+    }
+    // g label (bottom-right)
+    if (k.gl) {
+      const gl = document.createElement('span');
+      gl.className = 'gl';
+      gl.textContent = k.gl;
+      btn.appendChild(gl);
+    }
+
+    // Grid position
+    const span = k.span || 1;
+    btn.style.gridColumn = span > 1 ? `${col} / span ${span}` : `${col}`;
+    btn.style.gridRow = `${row}`;
+
+    btn.addEventListener('pointerdown', e => { e.preventDefault(); handleKey(k); });
+
+    kp.appendChild(btn);
+
+    col += span;
+    if (col > 7) { col = 1; row++; }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// DISPLAY
+// ═══════════════════════════════════════════════
 function fmt(n) {
   if (!isFinite(n)) return isNaN(n) ? 'NaN' : (n > 0 ? '+∞' : '−∞');
-  // Use exponential for very large/small
   const abs = Math.abs(n);
-  if (abs !== 0 && (abs >= 1e10 || abs < 1e-6)) {
-    return n.toExponential(6).replace('e+', 'e').replace('e-', 'e−');
+  if (abs !== 0 && (abs >= 1e10 || abs < 1e-7)) {
+    return n.toExponential(5).replace('e+','e').replace('e-','e−');
   }
-  // Trim trailing zeros
-  let s = parseFloat(n.toPrecision(10)).toString();
-  return s;
+  return parseFloat(n.toPrecision(10)).toString();
 }
 
 function render() {
-  const disp = document.getElementById('stackDisplay');
-  disp.innerHTML = '';
+  const area = document.getElementById('stackArea');
+  area.innerHTML = '';
 
-  // Show all 8 levels, bottom (X) at bottom of display = last rendered
+  // Show 8 levels, level 8 (top) first, level 1 (X) last
   for (let i = STACK_SIZE - 1; i >= 0; i--) {
     const row = document.createElement('div');
-    row.className = 'stack-row' + (i === 0 ? ' active' : '');
+    row.className = 'stack-row' + (i === 0 ? ' x-row' : '');
 
     const lbl = document.createElement('span');
-    lbl.className = 'stack-label';
+    lbl.className = 's-label';
     lbl.textContent = LABELS[i];
 
     const val = document.createElement('span');
-    val.className = 'stack-value';
-    if (i === 0 && isTyping) {
-      val.textContent = inputStr || '0';
-    } else {
-      val.textContent = fmt(stack[i]);
-    }
+    val.className = 's-value';
+    val.textContent = (i === 0 && isTyping) ? (inputStr || '0') : fmt(stack[i]);
 
     row.appendChild(lbl);
     row.appendChild(val);
-    disp.appendChild(row);
+    area.appendChild(row);
   }
 
-  // Mem indicator
-  const mi = document.getElementById('memIndicator');
-  mi.textContent = memUsed ? `MEM: ${fmt(memory)}` : 'MEM: —';
-  mi.className = 'mem-indicator' + (memUsed ? ' active' : '');
+  // Shift indicator
+  const si = document.getElementById('shiftInd');
+  si.textContent = shiftMode === 1 ? 'f' : shiftMode === 2 ? 'g' : '—';
+  si.className = 'shift-indicator ' + (shiftMode === 1 ? 'f-active' : shiftMode === 2 ? 'g-active' : 'none');
+
+  // Annunciators
+  document.getElementById('annF').className = 'ann' + (shiftMode === 1 ? ' f-on' : '');
+  document.getElementById('annG').className = 'ann' + (shiftMode === 2 ? ' g-on' : '');
+  document.getElementById('annMem').className = 'ann' + (memUsed ? ' on' : '');
+
+  // Highlight shift keys
+  document.querySelectorAll('.k').forEach(btn => {
+    btn.classList.remove('f-lit','g-lit');
+    if (shiftMode === 1 && btn.getAttribute('data-fn') === 'shiftF') btn.classList.add('f-lit');
+    if (shiftMode === 2 && btn.getAttribute('data-fn') === 'shiftG') btn.classList.add('g-lit');
+  });
+
+  document.getElementById('angleBtn').textContent = angleMode;
 }
 
-function showError(msg) {
-  const el = document.getElementById('errorMsg');
+function showErr(msg) {
+  const el = document.getElementById('errLine');
   el.textContent = msg;
-  setTimeout(() => { el.textContent = ''; }, 2000);
+  setTimeout(() => el.textContent = '', 2200);
 }
+function clearErr() { document.getElementById('errLine').textContent = ''; }
 
-// ── Stack helpers ──────────────────────────────────────
-function liftStack() {
-  for (let i = STACK_SIZE - 1; i > 0; i--) stack[i] = stack[i - 1];
-}
+// ═══════════════════════════════════════════════
+// STACK HELPERS
+// ═══════════════════════════════════════════════
+function lift()  { for (let i = STACK_SIZE-1; i > 0; i--) stack[i] = stack[i-1]; }
+function drop()  { for (let i = 0; i < STACK_SIZE-1; i++) stack[i] = stack[i+1]; }
+function pushX(v){ lift(); stack[0] = v; }
 
-function pushX(val) {
-  liftStack();
-  stack[0] = val;
-}
+function saveLast() { lastX = stack[0]; }
 
-function getX() { return stack[0]; }
-function getY() { return stack[1]; }
-
-function dropStack() {
-  for (let i = 0; i < STACK_SIZE - 1; i++) stack[i] = stack[i + 1];
-  // T register stays (classic HP behaviour)
-}
-
-// ── Input ──────────────────────────────────────────────
-function digit(d) {
-  clearError();
-  if (!isTyping) {
-    // Begin new entry: first lift stack so X is preserved in Y
-    liftStack();
-    inputStr = '';
-    isTyping = true;
-  }
-  if (d === 'e') {
-    if (inputStr.includes('e')) return;
-    if (!inputStr || inputStr === '-') inputStr += (inputStr ? '' : '1') + 'e';
-    else inputStr += 'e';
-  } else if (d === '.') {
-    // Handle decimal in mantissa or exponent part
-    const eIdx = inputStr.indexOf('e');
-    if (eIdx === -1) {
-      if (!inputStr.includes('.')) inputStr += '.';
-    } else {
-      const exp = inputStr.slice(eIdx + 1);
-      if (!exp.includes('.')) inputStr += '.';
-    }
-  } else {
-    inputStr += d;
-  }
-  render();
-}
-
-function commitInput() {
-  if (isTyping) {
-    let val = parseFloat(inputStr);
-    if (isNaN(val)) val = 0;
-    stack[0] = val;
-    isTyping = false;
-    inputStr = '';
-  }
-}
-
-function enterKey() {
-  clearError();
-  if (isTyping) {
-    // Commit the typed number into X without lifting (typing already lifted)
-    let val = parseFloat(inputStr);
-    if (isNaN(val)) val = 0;
-    stack[0] = val;
-    isTyping = false;
-    inputStr = '';
-    // ENTER after typing: duplicate X into Y (lift, copy back)
-    const x = stack[0];
-    liftStack();
-    stack[0] = x;
-  } else {
-    // Duplicate X
-    const x = stack[0];
-    liftStack();
-    stack[0] = x;
-  }
-  render();
-}
-
-function backspace() {
-  clearError();
-  if (isTyping) {
-    inputStr = inputStr.slice(0, -1);
-    render();
-  } else {
-    // Drop X
-    dropStack();
-    render();
-  }
-}
-
-function clearAll() {
-  stack.fill(0);
-  inputStr = '';
+function commit() {
+  if (!isTyping) return;
+  const v = parseFloat(inputStr);
+  stack[0] = isNaN(v) ? 0 : v;
   isTyping = false;
-  render();
+  inputStr = '';
 }
 
-function clearError() {
-  document.getElementById('errorMsg').textContent = '';
-}
-
-// ── Binary ops ─────────────────────────────────────────
-function op(o) {
-  clearError();
-  commitInput();
-  const x = stack[0], y = stack[1];
-  let result;
-  switch (o) {
-    case '+': result = y + x; break;
-    case '-': result = y - x; break;
-    case '*': result = y * x; break;
-    case '/':
-      if (x === 0) { showError('DIVIDE BY ZERO'); return; }
-      result = y / x; break;
-    case '%': result = y % x; break;
-  }
-  dropStack();
-  stack[0] = result;
-  render();
-}
-
-// ── Scientific ─────────────────────────────────────────
-function toRad(deg) { return deg * Math.PI / 180; }
-function toDeg(rad) { return rad * 180 / Math.PI; }
-
-// Shift logic: tap a sci button quickly twice for inverse
-let lastSci = null, lastSciTime = 0;
-
-function sci(fn) {
-  clearError();
-  commitInput();
-
-  // Double-tap detection for inverses
-  const now = Date.now();
-  const dbl = (fn === lastSci && now - lastSciTime < 500);
-  lastSci = fn; lastSciTime = now;
-
-  const x = stack[0];
-  const y = stack[1];
-  let result, usedY = false;
-
-  try {
-    switch(fn) {
-      case 'sin': result = dbl ? (angleMode==='DEG'?toDeg(Math.asin(x)):Math.asin(x)) : Math.sin(angleMode==='DEG'?toRad(x):x); break;
-      case 'cos': result = dbl ? (angleMode==='DEG'?toDeg(Math.acos(x)):Math.acos(x)) : Math.cos(angleMode==='DEG'?toRad(x):x); break;
-      case 'tan': result = dbl ? (angleMode==='DEG'?toDeg(Math.atan(x)):Math.atan(x)) : Math.tan(angleMode==='DEG'?toRad(x):x); break;
-      case 'log': result = dbl ? Math.pow(10, x) : Math.log10(x); break;
-      case 'ln':  result = dbl ? Math.exp(x) : Math.log(x); break;
-      case 'sqrt':result = dbl ? x*x : Math.sqrt(x); break;
-      case 'xrty':
-        // x√y: y is base, x is root  (double: x^y)
-        usedY = true;
-        result = dbl ? Math.pow(y, x) : Math.pow(y, 1/x);
-        break;
-      case 'pi':  pushX(Math.PI); render(); return;
-      case 'recip':
-        if (x === 0) { showError('DIVIDE BY ZERO'); return; }
-        result = 1 / x; break;
-      case 'chs': result = -x; break;
-    }
-
-    if (!isFinite(result)) { showError('OVERFLOW'); stack[0] = result; render(); return; }
-    if (isNaN(result)) { showError('DOMAIN ERROR'); return; }
-
-    if (usedY) {
-      dropStack();
-      stack[0] = result;
-    } else {
-      stack[0] = result;
-    }
-  } catch(e) {
-    showError('ERROR');
-  }
-  render();
-}
-
-// ── Stack manipulation ─────────────────────────────────
-function stackRoll() {
-  clearError();
-  commitInput();
-  const x = stack[0];
-  dropStack();
-  stack[STACK_SIZE - 1] = x;
-  render();
-}
-
-function stackSwap() {
-  clearError();
-  commitInput();
-  [stack[0], stack[1]] = [stack[1], stack[0]];
-  render();
-}
-
-function stackDrop() {
-  clearError();
-  commitInput();
-  dropStack();
-  render();
-}
-
-// ── Memory ─────────────────────────────────────────────
-function memSto() {
-  clearError();
-  commitInput();
-  memory = stack[0];
-  memUsed = true;
-  render();
-}
-
-function memRcl() {
-  clearError();
-  commitInput();
-  pushX(memory);
-  render();
-}
-
-// ── Angle mode ─────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// ANGLE
+// ═══════════════════════════════════════════════
+function toRad(x) { return angleMode === 'DEG' ? x * Math.PI / 180 : x; }
+function fromRad(x){ return angleMode === 'DEG' ? x * 180 / Math.PI : x; }
 function toggleAngle() {
   angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
-  document.getElementById('angleToggle').textContent = angleMode;
   render();
 }
 
-// ── Keyboard support ───────────────────────────────────
+// ═══════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════
+const actions = {
+  // Shift
+  shiftF() { shiftMode = shiftMode === 1 ? 0 : 1; },
+  shiftG() { shiftMode = shiftMode === 2 ? 0 : 2; },
+
+  // Digits
+  d0(){ dgt('0'); }, d1(){ dgt('1'); }, d2(){ dgt('2'); }, d3(){ dgt('3'); },
+  d4(){ dgt('4'); }, d5(){ dgt('5'); }, d6(){ dgt('6'); }, d7(){ dgt('7'); },
+  d8(){ dgt('8'); }, d9(){ dgt('9'); },
+  dot(){
+    if (!isTyping) { lift(); inputStr = ''; isTyping = true; }
+    if (!inputStr.includes('.')) { inputStr = (inputStr || '0') + '.'; }
+  },
+  eex(){
+    if (!isTyping) { lift(); inputStr = '1'; isTyping = true; }
+    if (!inputStr.includes('e') && !inputStr.includes('E')) inputStr += 'e';
+  },
+
+  // Stack
+  enter() {
+    commit();
+    const x = stack[0]; lift(); stack[0] = x;
+  },
+  rollDn() {
+    commit();
+    const x = stack[0]; drop(); stack[STACK_SIZE-1] = x;
+  },
+  rollUp() {
+    commit();
+    const top = stack[STACK_SIZE-1];
+    for (let i = STACK_SIZE-1; i > 0; i--) stack[i] = stack[i-1];
+    stack[0] = top;
+  },
+  swap() { commit(); [stack[0],stack[1]] = [stack[1],stack[0]]; },
+  bksp() {
+    if (isTyping) { inputStr = inputStr.slice(0,-1); }
+    else { drop(); }
+  },
+  clearAll() { stack.fill(0); inputStr=''; isTyping=false; },
+  clearStk() { stack.fill(0); inputStr=''; isTyping=false; },
+  clx() { commit(); stack[0] = 0; },
+  lastx() { pushX(lastX); },
+
+  // Arithmetic
+  add() { binaryOp((y,x) => y+x); },
+  sub() { binaryOp((y,x) => y-x); },
+  mul() { binaryOp((y,x) => y*x); },
+  div() { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return y/x; }); },
+  mod() { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return y%x; }); },
+
+  // Math
+  sqrt()  { unaryOp(x => { if(x<0){showErr('DOMAIN'); return NaN;} return Math.sqrt(x); }); },
+  sq()    { unaryOp(x => x*x); },
+  expx()  { unaryOp(x => Math.exp(x)); },
+  ln()    { unaryOp(x => { if(x<=0){showErr('DOMAIN'); return NaN;} return Math.log(x); }); },
+  pow10() { unaryOp(x => Math.pow(10,x)); },
+  log()   { unaryOp(x => { if(x<=0){showErr('DOMAIN'); return NaN;} return Math.log10(x); }); },
+  yx()    { binaryOp((y,x) => Math.pow(y,x)); },
+  xrty()  { binaryOp((y,x) => { if(x===0){showErr('DIV/0'); return NaN;} return Math.pow(y,1/x); }); },
+  recip() { unaryOp(x => { if(x===0){showErr('DIV/0'); return NaN;} return 1/x; }); },
+  chs()   {
+    if (isTyping) {
+      if (inputStr.startsWith('-')) inputStr = inputStr.slice(1);
+      else inputStr = '-' + inputStr;
+    } else { stack[0] = -stack[0]; }
+  },
+  pi()    { pushX(Math.PI); },
+  fact()  { unaryOp(x => {
+    if (x < 0 || x !== Math.floor(x)) { showErr('DOMAIN'); return NaN; }
+    if (x > 170) { showErr('OVERFLOW'); return Infinity; }
+    let r = 1; for (let i = 2; i <= x; i++) r *= i; return r;
+  }); },
+  abs()   { unaryOp(x => Math.abs(x)); },
+  intg()  { unaryOp(x => Math.trunc(x)); },
+  frac()  { unaryOp(x => x - Math.trunc(x)); },
+  rnd()   { unaryOp(x => parseFloat(x.toPrecision(6))); },
+
+  // Trig
+  sin()  { unaryOp(x => Math.sin(toRad(x))); },
+  cos()  { unaryOp(x => Math.cos(toRad(x))); },
+  tan()  { unaryOp(x => Math.tan(toRad(x))); },
+  asin() { unaryOp(x => { if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.asin(x)); }); },
+  acos() { unaryOp(x => { if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.acos(x)); }); },
+  atan() { unaryOp(x => fromRad(Math.atan(x))); },
+
+  // Memory
+  sto() { commit(); memory = stack[0]; memUsed = true; },
+  rcl() { commit(); pushX(memory); },
+
+  // Percentage helpers
+  pct()  { binaryOp((y,x) => y * x / 100); },
+  dpct() { binaryOp((y,x) => { if(y===0){showErr('DIV/0');return NaN;} return (x-y)/y*100; }); },
+  pctt() { binaryOp((y,x) => y===0?NaN:x/y*100); },
+};
+
+function binaryOp(fn) {
+  commit(); saveLast();
+  const x = stack[0], y = stack[1];
+  const r = fn(y, x);
+  if (r !== undefined && !isNaN(r)) { drop(); stack[0] = r; }
+}
+
+function unaryOp(fn) {
+  commit(); saveLast();
+  const r = fn(stack[0]);
+  if (r !== undefined && !isNaN(r)) stack[0] = r;
+}
+
+function dgt(d) {
+  if (!isTyping) { lift(); inputStr = ''; isTyping = true; }
+  inputStr += d;
+}
+
+// ═══════════════════════════════════════════════
+// KEY DISPATCH
+// ═══════════════════════════════════════════════
+function handleKey(k) {
+  clearErr();
+  let fnName;
+
+  if (shiftMode === 1) {
+    fnName = k.fFn || k.fn;
+    if (k.fn !== 'shiftF' && k.fn !== 'shiftG') shiftMode = 0;
+  } else if (shiftMode === 2) {
+    fnName = k.gFn || k.fn;
+    if (k.fn !== 'shiftF' && k.fn !== 'shiftG') shiftMode = 0;
+  } else {
+    fnName = k.fn;
+  }
+
+  if (fnName && actions[fnName]) {
+    actions[fnName]();
+  }
+
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// KEYBOARD SUPPORT (desktop/Mac testing)
+// ═══════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key >= '0' && e.key <= '9') digit(e.key);
-  else if (e.key === '.') digit('.');
-  else if (e.key === 'Enter') enterKey();
-  else if (e.key === 'Backspace') backspace();
-  else if (e.key === '+') op('+');
-  else if (e.key === '-') op('-');
-  else if (e.key === '*') op('*');
-  else if (e.key === '/') { e.preventDefault(); op('/'); }
-  else if (e.key === 'Escape') clearAll();
-  else if (e.key === 'p' || e.key === 'P') sci('pi');
-  else if (e.key === 's') sci('sin');
-  else if (e.key === 'c') sci('cos');
-  else if (e.key === 't') sci('tan');
-  else if (e.key === 'l') sci('ln');
-  else if (e.key === 'L') sci('log');
-  else if (e.key === 'q') sci('sqrt');
-  else if (e.key === 'n') sci('chs');
-  else if (e.key === 'r') stackRoll();
-  else if (e.key === 'x') stackSwap();
+  const map = {
+    'Enter':'enter','Backspace':'bksp','Escape':'clearAll',
+    '+':'add','-':'sub','*':'mul','/':'div',
+    '0':'d0','1':'d1','2':'d2','3':'d3','4':'d4',
+    '5':'d5','6':'d6','7':'d7','8':'d8','9':'d9',
+    '.':'dot','E':'eex','e':'eex',
+    's':'sin','c':'cos','t':'tan','l':'ln','L':'log',
+    'p':'pi','q':'sqrt','r':'rollDn','x':'swap',
+    'n':'chs','!':'fact','a':'abs',
+  };
+  if (map[e.key]) {
+    e.preventDefault();
+    clearErr();
+    const fn = map[e.key];
+    if (actions[fn]) { actions[fn](); render(); }
+  }
 });
 
-// ── Fix layout: remove duplicate ENTER buttons ─────────
-// The HTML has two ENTER buttons for visual layout — we remove the second one via JS
-// Actually both are intentional: grid-row span 2 means we need them in separate rows.
-// We'll just remove the last one and keep the layout working with CSS grid.
-
-// ── Init ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+buildKeypad();
 render();
 </script>
 </body>
