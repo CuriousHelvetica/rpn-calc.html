@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RPN Calc">
+<title>RPN Scientific Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1a1a;
+    --body-bg: #111;
+    --calc-bg: #222;
+    --calc-border: #3a3a3a;
+    --display-bg: #0d0d0d;
+    --amber: #ffb000;
+    --amber-dim: #7a5200;
+    --amber-glow: rgba(255,176,0,0.15);
+    --btn-sci: #1e2a3a;
+    --btn-sci-border: #2e4a6a;
+    --btn-sci-text: #6ab0ff;
+    --btn-op: #2a1e1e;
+    --btn-op-border: #6a2e2e;
+    --btn-op-text: #ff8080;
+    --btn-num: #252525;
+    --btn-num-border: #404040;
+    --btn-num-text: #e0e0e0;
+    --btn-enter: #1a2e1a;
+    --btn-enter-border: #2e6a2e;
+    --btn-enter-text: #80ff80;
+    --btn-mem: #2a2a1e;
+    --btn-mem-border: #5a5a2e;
+    --btn-mem-text: #ffff80;
+    --shadow: 0 8px 32px rgba(0,0,0,0.7);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--body-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+  }
+
+  .calculator {
+    width: min(400px, 100vw);
+    max-height: 100vh;
+    background: var(--calc-bg);
+    border: 1px solid var(--calc-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Subtle texture */
+  .calculator::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,255,255,0.01) 2px,
+      rgba(255,255,255,0.01) 4px
+    );
+    pointer-events: none;
+    border-radius: 16px;
+  }
+
+  .brand {
+    padding: 10px 16px 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .brand-name {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+  }
+
+  .mode-indicator {
+    font-size: 10px;
+    color: var(--amber-dim);
+    letter-spacing: 1px;
+  }
+
+  /* DISPLAY */
+  .display {
+    margin: 0 12px 8px;
+    background: var(--display-bg);
+    border-radius: 8px;
+    border: 1px solid #1a1a0a;
+    box-shadow: inset 0 2px 12px rgba(0,0,0,0.8), 0 0 20px var(--amber-glow);
+    padding: 10px 14px;
+    overflow: hidden;
+  }
+
+  .stack-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 6px;
+  }
+
+  .stack-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255,176,0,0.05);
+  }
+
+  .stack-row:last-child { border-bottom: none; }
+
+  .stack-label {
+    font-size: 9px;
+    color: var(--amber-dim);
+    width: 20px;
+    flex-shrink: 0;
+    letter-spacing: 1px;
+    opacity: 0.7;
+  }
+
+  .stack-value {
+    font-size: 13px;
+    color: var(--amber-dim);
+    text-align: right;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.6;
+    letter-spacing: 0.5px;
+  }
+
+  .stack-row.active .stack-label { color: var(--amber); opacity: 1; }
+  .stack-row.active .stack-value { color: var(--amber); opacity: 1; font-size: 18px; }
+
+  .display-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+  }
+
+  .mem-indicator {
+    font-size: 9px;
+    color: var(--amber-dim);
+    letter-spacing: 1px;
+  }
+
+  .mem-indicator.active { color: #ffff80; }
+
+  .angle-mode {
+    font-size: 9px;
+    color: var(--amber-dim);
+    letter-spacing: 1px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border: 1px solid var(--amber-dim);
+    border-radius: 3px;
+    transition: all 0.1s;
+  }
+
+  .angle-mode:hover, .angle-mode.active { color: var(--amber); border-color: var(--amber); }
+
+  .error-msg {
+    font-size: 10px;
+    color: #ff6060;
+    text-align: right;
+    min-height: 12px;
+    letter-spacing: 1px;
+  }
+
+  /* BUTTONS */
+  .btn-grid {
+    padding: 4px 10px 12px;
+    display: grid;
+    gap: 5px;
+  }
+
+  /* Row layout: 5 cols */
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+  .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+
+  .btn {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 0;
+    height: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+    transition: filter 0.08s, transform 0.08s, box-shadow 0.08s;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .btn:active {
+    transform: translateY(1px);
+    filter: brightness(1.3);
+    box-shadow: none !important;
+  }
+
+  .btn .sub { font-size: 8px; opacity: 0.6; margin-top: 1px; }
+
+  /* Num */
+  .btn-num {
+    background: linear-gradient(180deg, #2e2e2e, #1e1e1e);
+    border: 1px solid var(--btn-num-border);
+    color: var(--btn-num-text);
+    box-shadow: 0 3px 0 #111, inset 0 1px 0 rgba(255,255,255,0.06);
+    font-size: 16px;
+    font-weight: bold;
+  }
+
+  .btn-num.zero { grid-column: span 2; }
+
+  /* Enter - tall */
+  .btn-enter {
+    background: linear-gradient(180deg, #223322, #162216);
+    border: 1px solid var(--btn-enter-border);
+    color: var(--btn-enter-text);
+    box-shadow: 0 3px 0 #0a150a, inset 0 1px 0 rgba(255,255,255,0.05);
+    font-size: 13px;
+    letter-spacing: 1px;
+    grid-row: span 2;
+    height: 89px;
+  }
+
+  /* Ops */
+  .btn-op {
+    background: linear-gradient(180deg, #2e1e1e, #1e1212);
+    border: 1px solid var(--btn-op-border);
+    color: var(--btn-op-text);
+    box-shadow: 0 3px 0 #110808, inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  /* Sci */
+  .btn-sci {
+    background: linear-gradient(180deg, #1a2535, #101820);
+    border: 1px solid var(--btn-sci-border);
+    color: var(--btn-sci-text);
+    box-shadow: 0 3px 0 #080f18, inset 0 1px 0 rgba(255,255,255,0.05);
+    font-size: 10px;
+  }
+
+  /* Mem */
+  .btn-mem {
+    background: linear-gradient(180deg, #252515, #181810);
+    border: 1px solid var(--btn-mem-border);
+    color: var(--btn-mem-text);
+    box-shadow: 0 3px 0 #0e0e08, inset 0 1px 0 rgba(255,255,255,0.05);
+    font-size: 10px;
+  }
+
+  /* Clear / Stack ops */
+  .btn-clr {
+    background: linear-gradient(180deg, #2a1515, #1a0a0a);
+    border: 1px solid #6a1a1a;
+    color: #ff6060;
+    box-shadow: 0 3px 0 #100505, inset 0 1px 0 rgba(255,255,255,0.05);
+    font-size: 11px;
+  }
+
+  .btn-stack {
+    background: linear-gradient(180deg, #202020, #141414);
+    border: 1px solid #404040;
+    color: #aaa;
+    box-shadow: 0 3px 0 #0a0a0a, inset 0 1px 0 rgba(255,255,255,0.05);
+    font-size: 10px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #333, transparent);
+    margin: 2px 10px;
+  }
+</style>
+</head>
+<body>
+<div class="calculator">
+  <div class="brand">
+    <span class="brand-name">HP·RPN·SCI</span>
+    <span class="mode-indicator">8-LEVEL STACK</span>
+  </div>
+
+  <div class="display">
+    <div class="stack-container" id="stackDisplay"></div>
+    <div class="display-bottom">
+      <span class="mem-indicator" id="memIndicator">MEM: —</span>
+      <span class="angle-mode" id="angleToggle" onclick="toggleAngle()">DEG</span>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="btn-grid">
+    <!-- Row 1: Sci functions -->
+    <div class="row">
+      <button class="btn btn-sci" onclick="sci('sin')">SIN<span class="sub">asin</span></button>
+      <button class="btn btn-sci" onclick="sci('cos')">COS<span class="sub">acos</span></button>
+      <button class="btn btn-sci" onclick="sci('tan')">TAN<span class="sub">atan</span></button>
+      <button class="btn btn-sci" onclick="sci('log')">LOG<span class="sub">10^x</span></button>
+      <button class="btn btn-sci" onclick="sci('ln')">LN<span class="sub">e^x</span></button>
+    </div>
+    <!-- Row 2: More sci -->
+    <div class="row">
+      <button class="btn btn-sci" onclick="sci('sqrt')">√x<span class="sub">x²</span></button>
+      <button class="btn btn-sci" onclick="sci('xrty')">x√y<span class="sub">xʸ</span></button>
+      <button class="btn btn-sci" onclick="sci('log')">LOG<span class="sub">10^x</span></button>
+      <button class="btn btn-sci" onclick="sci('ln')">LN<span class="sub">e^x</span></button>
+      <button class="btn btn-stack" onclick="stackRoll()">R↓</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Row 3: Mem + stack ops -->
+    <div class="row">
+      <button class="btn btn-mem" onclick="memSto()">STO</button>
+      <button class="btn btn-mem" onclick="memRcl()">RCL</button>
+      <button class="btn btn-stack" onclick="stackSwap()">X↔Y</button>
+      <button class="btn btn-clr" onclick="stackDrop()">DROP</button>
+      <button class="btn btn-clr" onclick="clearAll()">CLR</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Rows 4-7: main numpad area — single CSS grid spanning all rows -->
+    <div style="display:grid; grid-template-columns: repeat(5,1fr); grid-template-rows: repeat(4, 42px); gap:5px;">
+      <!-- Row 4 -->
+      <button class="btn btn-clr" onclick="backspace()" style="grid-column:1;grid-row:1">⌫</button>
+      <button class="btn btn-op"  onclick="op('/')"     style="grid-column:2;grid-row:1">÷</button>
+      <button class="btn btn-op"  onclick="op('*')"     style="grid-column:3;grid-row:1">×</button>
+      <button class="btn btn-op"  onclick="op('-')"     style="grid-column:4;grid-row:1">−</button>
+      <!-- ENTER spans rows 1-2 -->
+      <button class="btn btn-enter" onclick="enterKey()" style="grid-column:5;grid-row:1/3;height:auto">ENTER</button>
+      <!-- Row 5 -->
+      <button class="btn btn-num" onclick="digit('7')"  style="grid-column:1;grid-row:2">7</button>
+      <button class="btn btn-num" onclick="digit('8')"  style="grid-column:2;grid-row:2">8</button>
+      <button class="btn btn-num" onclick="digit('9')"  style="grid-column:3;grid-row:2">9</button>
+      <button class="btn btn-op"  onclick="op('+')"     style="grid-column:4;grid-row:2">+</button>
+      <!-- Row 6 -->
+      <button class="btn btn-num" onclick="digit('4')"  style="grid-column:1;grid-row:3">4</button>
+      <button class="btn btn-num" onclick="digit('5')"  style="grid-column:2;grid-row:3">5</button>
+      <button class="btn btn-num" onclick="digit('6')"  style="grid-column:3;grid-row:3">6</button>
+      <button class="btn btn-op"  onclick="op('%')"     style="grid-column:4;grid-row:3">MOD</button>
+      <!-- Row 7 -->
+      <button class="btn btn-num" onclick="digit('1')"  style="grid-column:1;grid-row:4">1</button>
+      <button class="btn btn-num" onclick="digit('2')"  style="grid-column:2;grid-row:4">2</button>
+      <button class="btn btn-num" onclick="digit('3')"  style="grid-column:3;grid-row:4">3</button>
+      <button class="btn btn-num" onclick="digit('0')"  style="grid-column:4;grid-row:4">0</button>
+      <button class="btn btn-num" onclick="digit('.')"  style="grid-column:5;grid-row:4">.</button>
+    </div>
+    <!-- EEX row -->
+    <div class="row-4" style="grid-template-columns: repeat(5,1fr);">
+      <button class="btn btn-sci" onclick="digit('e')" style="grid-column:span 2">EEX</button>
+      <button class="btn btn-sci" onclick="sci('chs')">+/−</button>
+      <button class="btn btn-sci" onclick="sci('recip')">1/x</button>
+      <button class="btn btn-sci" onclick="sci('pi')">π</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────
+const STACK_SIZE = 8;
+let stack = new Array(STACK_SIZE).fill(0);
+let inputStr = '';      // current input being typed
+let isTyping = false;   // are we mid-number entry?
+let shiftActive = false;// for inverse functions (double-tap)
+let angleMode = 'DEG'; // DEG or RAD
+let memory = 0;
+let memUsed = false;
+
+const LABELS = ['X','Y','Z','T','5','6','7','8'];
+
+// ── Display ────────────────────────────────────────────
+function fmt(n) {
+  if (!isFinite(n)) return isNaN(n) ? 'NaN' : (n > 0 ? '+∞' : '−∞');
+  // Use exponential for very large/small
+  const abs = Math.abs(n);
+  if (abs !== 0 && (abs >= 1e10 || abs < 1e-6)) {
+    return n.toExponential(6).replace('e+', 'e').replace('e-', 'e−');
+  }
+  // Trim trailing zeros
+  let s = parseFloat(n.toPrecision(10)).toString();
+  return s;
+}
+
+function render() {
+  const disp = document.getElementById('stackDisplay');
+  disp.innerHTML = '';
+
+  // Show all 8 levels, bottom (X) at bottom of display = last rendered
+  for (let i = STACK_SIZE - 1; i >= 0; i--) {
+    const row = document.createElement('div');
+    row.className = 'stack-row' + (i === 0 ? ' active' : '');
+
+    const lbl = document.createElement('span');
+    lbl.className = 'stack-label';
+    lbl.textContent = LABELS[i];
+
+    const val = document.createElement('span');
+    val.className = 'stack-value';
+    if (i === 0 && isTyping) {
+      val.textContent = inputStr || '0';
+    } else {
+      val.textContent = fmt(stack[i]);
+    }
+
+    row.appendChild(lbl);
+    row.appendChild(val);
+    disp.appendChild(row);
+  }
+
+  // Mem indicator
+  const mi = document.getElementById('memIndicator');
+  mi.textContent = memUsed ? `MEM: ${fmt(memory)}` : 'MEM: —';
+  mi.className = 'mem-indicator' + (memUsed ? ' active' : '');
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 2000);
+}
+
+// ── Stack helpers ──────────────────────────────────────
+function liftStack() {
+  for (let i = STACK_SIZE - 1; i > 0; i--) stack[i] = stack[i - 1];
+}
+
+function pushX(val) {
+  liftStack();
+  stack[0] = val;
+}
+
+function getX() { return stack[0]; }
+function getY() { return stack[1]; }
+
+function dropStack() {
+  for (let i = 0; i < STACK_SIZE - 1; i++) stack[i] = stack[i + 1];
+  // T register stays (classic HP behaviour)
+}
+
+// ── Input ──────────────────────────────────────────────
+function digit(d) {
+  clearError();
+  if (!isTyping) {
+    // Begin new entry: first lift stack so X is preserved in Y
+    liftStack();
+    inputStr = '';
+    isTyping = true;
+  }
+  if (d === 'e') {
+    if (inputStr.includes('e')) return;
+    if (!inputStr || inputStr === '-') inputStr += (inputStr ? '' : '1') + 'e';
+    else inputStr += 'e';
+  } else if (d === '.') {
+    // Handle decimal in mantissa or exponent part
+    const eIdx = inputStr.indexOf('e');
+    if (eIdx === -1) {
+      if (!inputStr.includes('.')) inputStr += '.';
+    } else {
+      const exp = inputStr.slice(eIdx + 1);
+      if (!exp.includes('.')) inputStr += '.';
+    }
+  } else {
+    inputStr += d;
+  }
+  render();
+}
+
+function commitInput() {
+  if (isTyping) {
+    let val = parseFloat(inputStr);
+    if (isNaN(val)) val = 0;
+    stack[0] = val;
+    isTyping = false;
+    inputStr = '';
+  }
+}
+
+function enterKey() {
+  clearError();
+  if (isTyping) {
+    // Commit the typed number into X without lifting (typing already lifted)
+    let val = parseFloat(inputStr);
+    if (isNaN(val)) val = 0;
+    stack[0] = val;
+    isTyping = false;
+    inputStr = '';
+    // ENTER after typing: duplicate X into Y (lift, copy back)
+    const x = stack[0];
+    liftStack();
+    stack[0] = x;
+  } else {
+    // Duplicate X
+    const x = stack[0];
+    liftStack();
+    stack[0] = x;
+  }
+  render();
+}
+
+function backspace() {
+  clearError();
+  if (isTyping) {
+    inputStr = inputStr.slice(0, -1);
+    render();
+  } else {
+    // Drop X
+    dropStack();
+    render();
+  }
+}
+
+function clearAll() {
+  stack.fill(0);
+  inputStr = '';
+  isTyping = false;
+  render();
+}
+
+function clearError() {
+  document.getElementById('errorMsg').textContent = '';
+}
+
+// ── Binary ops ─────────────────────────────────────────
+function op(o) {
+  clearError();
+  commitInput();
+  const x = stack[0], y = stack[1];
+  let result;
+  switch (o) {
+    case '+': result = y + x; break;
+    case '-': result = y - x; break;
+    case '*': result = y * x; break;
+    case '/':
+      if (x === 0) { showError('DIVIDE BY ZERO'); return; }
+      result = y / x; break;
+    case '%': result = y % x; break;
+  }
+  dropStack();
+  stack[0] = result;
+  render();
+}
+
+// ── Scientific ─────────────────────────────────────────
+function toRad(deg) { return deg * Math.PI / 180; }
+function toDeg(rad) { return rad * 180 / Math.PI; }
+
+// Shift logic: tap a sci button quickly twice for inverse
+let lastSci = null, lastSciTime = 0;
+
+function sci(fn) {
+  clearError();
+  commitInput();
+
+  // Double-tap detection for inverses
+  const now = Date.now();
+  const dbl = (fn === lastSci && now - lastSciTime < 500);
+  lastSci = fn; lastSciTime = now;
+
+  const x = stack[0];
+  const y = stack[1];
+  let result, usedY = false;
+
+  try {
+    switch(fn) {
+      case 'sin': result = dbl ? (angleMode==='DEG'?toDeg(Math.asin(x)):Math.asin(x)) : Math.sin(angleMode==='DEG'?toRad(x):x); break;
+      case 'cos': result = dbl ? (angleMode==='DEG'?toDeg(Math.acos(x)):Math.acos(x)) : Math.cos(angleMode==='DEG'?toRad(x):x); break;
+      case 'tan': result = dbl ? (angleMode==='DEG'?toDeg(Math.atan(x)):Math.atan(x)) : Math.tan(angleMode==='DEG'?toRad(x):x); break;
+      case 'log': result = dbl ? Math.pow(10, x) : Math.log10(x); break;
+      case 'ln':  result = dbl ? Math.exp(x) : Math.log(x); break;
+      case 'sqrt':result = dbl ? x*x : Math.sqrt(x); break;
+      case 'xrty':
+        // x√y: y is base, x is root  (double: x^y)
+        usedY = true;
+        result = dbl ? Math.pow(y, x) : Math.pow(y, 1/x);
+        break;
+      case 'pi':  pushX(Math.PI); render(); return;
+      case 'recip':
+        if (x === 0) { showError('DIVIDE BY ZERO'); return; }
+        result = 1 / x; break;
+      case 'chs': result = -x; break;
+    }
+
+    if (!isFinite(result)) { showError('OVERFLOW'); stack[0] = result; render(); return; }
+    if (isNaN(result)) { showError('DOMAIN ERROR'); return; }
+
+    if (usedY) {
+      dropStack();
+      stack[0] = result;
+    } else {
+      stack[0] = result;
+    }
+  } catch(e) {
+    showError('ERROR');
+  }
+  render();
+}
+
+// ── Stack manipulation ─────────────────────────────────
+function stackRoll() {
+  clearError();
+  commitInput();
+  const x = stack[0];
+  dropStack();
+  stack[STACK_SIZE - 1] = x;
+  render();
+}
+
+function stackSwap() {
+  clearError();
+  commitInput();
+  [stack[0], stack[1]] = [stack[1], stack[0]];
+  render();
+}
+
+function stackDrop() {
+  clearError();
+  commitInput();
+  dropStack();
+  render();
+}
+
+// ── Memory ─────────────────────────────────────────────
+function memSto() {
+  clearError();
+  commitInput();
+  memory = stack[0];
+  memUsed = true;
+  render();
+}
+
+function memRcl() {
+  clearError();
+  commitInput();
+  pushX(memory);
+  render();
+}
+
+// ── Angle mode ─────────────────────────────────────────
+function toggleAngle() {
+  angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+  document.getElementById('angleToggle').textContent = angleMode;
+  render();
+}
+
+// ── Keyboard support ───────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key >= '0' && e.key <= '9') digit(e.key);
+  else if (e.key === '.') digit('.');
+  else if (e.key === 'Enter') enterKey();
+  else if (e.key === 'Backspace') backspace();
+  else if (e.key === '+') op('+');
+  else if (e.key === '-') op('-');
+  else if (e.key === '*') op('*');
+  else if (e.key === '/') { e.preventDefault(); op('/'); }
+  else if (e.key === 'Escape') clearAll();
+  else if (e.key === 'p' || e.key === 'P') sci('pi');
+  else if (e.key === 's') sci('sin');
+  else if (e.key === 'c') sci('cos');
+  else if (e.key === 't') sci('tan');
+  else if (e.key === 'l') sci('ln');
+  else if (e.key === 'L') sci('log');
+  else if (e.key === 'q') sci('sqrt');
+  else if (e.key === 'n') sci('chs');
+  else if (e.key === 'r') stackRoll();
+  else if (e.key === 'x') stackSwap();
+});
+
+// ── Fix layout: remove duplicate ENTER buttons ─────────
+// The HTML has two ENTER buttons for visual layout — we remove the second one via JS
+// Actually both are intentional: grid-row span 2 means we need them in separate rows.
+// We'll just remove the last one and keep the layout working with CSS grid.
+
+// ── Init ───────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
