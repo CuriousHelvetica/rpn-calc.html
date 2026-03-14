@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="HP-15C">
-<title>HP-15C RPN</title>
+<meta name="apple-mobile-web-app-title" content="Helvetica RPN">
+<title>Helvetica RPN</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono:wght@400&family=Orbitron:wght@700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -19,53 +19,82 @@ html,body{
   touch-action:manipulation;
 }
 
-/* Fixed outer container — always fills screen */
+/* Fixed viewport container */
 #outer{
-  position:fixed;inset:0;
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
   overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
   background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
-/* Shell — sized and rotated by JS to always appear landscape */
+/*
+  Shell is always landscape.
+  We rotate it -90deg so the phone is held portrait with camera at top.
+  After -90deg rotation:
+    • shell "top"    → physical LEFT  (notch side)
+    • shell "bottom" → physical RIGHT (home-indicator side)
+    • shell "left"   → physical BOTTOM (ops/right-column side)
+    • shell "right"  → physical TOP   (display/left-side)
+
+  Shell width  = 100vh  (fills the tall dimension of portrait viewport)
+  Shell height = 100vw  (fills the narrow dimension)
+
+  To clear the notch (≈47px safe area at top of portrait viewport),
+  we add padding-top to the shell in its own coordinate space.
+  After rotation, shell "top" padding → physical left gap → clears notch.
+
+  iPhone 13 Pro: safe-area-inset-top ≈ 47px in portrait.
+  We use env(safe-area-inset-top) with 47px fallback.
+*/
 #shell{
   position:absolute;
-  top:50%;left:50%;
+  width:100vh;
+  height:100vw;
   background:#161616;
-  display:flex;flex-direction:row;
+  display:flex;
+  flex-direction:row;
   align-items:stretch;
-  /* padding accounts for safe areas on whichever edge is live */
-  padding:6px 10px 6px 10px;
+
+  /* padding-top clears notch after rotation */
+  padding-top: env(safe-area-inset-top, 47px);
+  padding-bottom: 6px;
+  padding-left:  8px;   /* this becomes physical BOTTOM after rotation */
+  padding-right: 8px;   /* this becomes physical TOP after rotation */
   gap:9px;
-  transform-origin:50% 50%;
-  transition:transform 0.25s ease;
-  will-change:transform;
+
+  /* Fixed rotation — always landscape, ops at physical bottom */
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
 }
 
 /* ── DISPLAY PANEL ── */
 .disp{
-  /* width set by JS based on available landscape width */
   width:200px;
   flex-shrink:0;
   background:#050a04;
   border-radius:8px;
-  border:1px solid #182010;
-  box-shadow:inset 0 2px 18px #000, 0 0 14px rgba(80,150,30,.08);
-  display:flex;flex-direction:column;
+  border:1px solid #1a1a1a;
+  box-shadow:inset 0 2px 18px #000;
+  display:flex;
+  flex-direction:column;
   padding:10px 12px 8px;
-  gap:0;
 }
 
 .disp-brand{
   font-family:'Orbitron',monospace;
-  font-size:11px;font-weight:700;
-  color:#2a3e16;letter-spacing:3px;
-  margin-bottom:0;
+  font-size:10px;font-weight:700;
+  color:#cccccc;
+  letter-spacing:2px;
   flex-shrink:0;
+  margin-bottom:0;
 }
 
-/* Empty spacer at top — the "leave top corner empty" breathing room */
-.disp-spacer{ flex:0.6; }
+/* Breathing room between brand and stack */
+.disp-spacer{ flex:0.5; }
 
 /* Stack rows */
 .stack-rows{
@@ -76,69 +105,79 @@ html,body{
 }
 
 .srow{
-  display:flex;justify-content:space-between;align-items:baseline;
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
 }
+
 .slbl{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;color:#2a401a;
-  width:16px;flex-shrink:0;letter-spacing:.5px;
+  font-size:9px;
+  color:#888888;        /* neutral grey — no green */
+  width:16px;
+  flex-shrink:0;
+  letter-spacing:.5px;
 }
+
 .sval{
   font-family:'Share Tech Mono',monospace;
   font-size:12px;font-weight:bold;
-  color:#cccccc;
-  text-align:right;flex:1;
+  color:#bbbbbb;
+  text-align:right;
+  flex:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
-/* X register — bright white and larger */
-.srow.xreg .slbl{ color:#80cc40;font-size:10px; }
+/* X register — largest, brightest white */
+.srow.xreg .slbl{ color:#ffffff;font-size:10px;font-weight:bold; }
 .srow.xreg .sval{ color:#ffffff;font-size:20px; }
 
-/* Y register — slightly larger too */
+/* Y register — noticeably bigger than rest */
+.srow.yreg .slbl{ color:#dddddd; }
 .srow.yreg .sval{ color:#eeeeee;font-size:14px; }
+
+/* Z and T a touch brighter than 5-8 */
+.srow.zreg .sval,.srow.treg .sval{ color:#cccccc;font-size:12px; }
 
 .disp-footer{
   flex-shrink:0;
   display:flex;justify-content:space-between;align-items:center;
   margin-top:8px;padding-top:6px;
-  border-top:1px solid #0e180a;
+  border-top:1px solid #1a1a1a;
 }
 
-/* ── INDICATORS: solid squares ── */
+/* ── INDICATORS — solid colour squares ── */
 .inds{display:flex;gap:5px;align-items:center;}
 
 .ind{
-  width:20px;height:20px;
+  width:22px;height:22px;
   display:flex;align-items:center;justify-content:center;
   border-radius:3px;
   font-family:'Share Tech Mono',monospace;
-  font-size:11px;font-weight:bold;
+  font-size:12px;font-weight:bold;
   opacity:0.15;
   transition:opacity .15s;
   flex-shrink:0;
 }
-.ind.on{opacity:1;}
-
-.ind-f{background:#ffcc00;color:#000;}
-.ind-g{background:#1199dd;color:#fff;}
-.ind-m{background:#888888;color:#fff;}
+.ind.on{ opacity:1; }
+.ind-f{ background:#ffcc00;color:#000; }
+.ind-g{ background:#1199dd;color:#fff; }
+.ind-m{ background:#777777;color:#fff; }
 
 .ang-btn{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;color:#2a3e16;
-  border:1px solid #1e2e12;border-radius:3px;
+  font-size:9px;color:#555;
+  border:1px solid #333;border-radius:3px;
   padding:2px 6px;cursor:pointer;letter-spacing:1px;
   -webkit-tap-highlight-color:transparent;
 }
-.ang-btn:active{color:#fff;border-color:#80cc40;}
+.ang-btn:active{ color:#fff;border-color:#888; }
 
 .err-line{
   font-family:'Share Tech Mono',monospace;
   font-size:9px;color:#ff5050;
   min-height:11px;text-align:right;
-  margin-top:3px;letter-spacing:1px;
-  flex-shrink:0;
+  margin-top:3px;letter-spacing:1px;flex-shrink:0;
 }
 
 /* ── KEYPAD: 10 cols × 4 rows ── */
@@ -151,26 +190,30 @@ html,body{
 }
 
 /* CELL = gold label + button */
-.cell{display:flex;flex-direction:column;gap:0;min-width:0;}
+.cell{
+  display:flex;flex-direction:column;
+  gap:0;min-width:0;
+}
 
-/* Gold f-shift label — floats on body above button */
+/* Gold f-shift label above button — bigger and bolder than before */
 .above{
   font-family:'Share Tech Mono',monospace;
-  font-size:7.5px;font-weight:bold;
+  font-size:9px;font-weight:bold;
   color:#ffcc00;
   text-align:center;
-  height:11px;line-height:11px;
+  height:13px;line-height:13px;
   letter-spacing:.3px;white-space:nowrap;overflow:hidden;
 }
 
 /* ── BUTTON ── */
 .k{
-  flex:1;display:flex;flex-direction:column;
+  flex:1;
+  display:flex;flex-direction:column;
   border-radius:6px;overflow:hidden;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.15),
-    inset 1px 0 0 rgba(255,255,255,.06),
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 1px 0 0 rgba(255,255,255,.07),
     inset -1px 0 0 rgba(0,0,0,.35),
     0 3px 0 rgba(0,0,0,.95),
     0 4px 8px rgba(0,0,0,.5);
@@ -181,50 +224,55 @@ html,body{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 0 rgba(0,0,0,.9);
 }
 
-/* Face — upper ~72% */
+/* Face — holds main white label, slightly less dominant than before */
 .kf{
-  flex:1;display:flex;align-items:center;justify-content:center;
-  background:#202020;padding:0 3px;
+  flex:1;
+  display:flex;align-items:center;justify-content:center;
+  background:#202020;
+  padding:0 3px;
+  min-height:0;
 }
 
-/* Chamfer — lower ~18px, blue label */
+/* Chamfer — taller now, holds blue label prominently */
 .kc{
-  height:18px;flex-shrink:0;
+  height:26px;           /* was 18px — much more readable */
+  flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   background:#141414;
-  border-top:1px solid #303030;
-  padding:0 3px;
+  border-top:1px solid #333;
+  padding:0 4px;
 }
 
-/* Main label */
+/* Main white label */
 .ml{
   font-family:'Share Tech Mono',monospace;
-  font-size:12px;font-weight:bold;color:#fff;
+  font-size:11px;font-weight:bold;color:#fff;
   text-align:center;line-height:1.1;
   letter-spacing:.3px;white-space:pre;
 }
-.ml.sm {font-size:9.5px;}
-.ml.num{font-size:20px;}
-.ml.op {font-size:18px;}
-.ml.ent{font-size:10px;letter-spacing:1.5px;}
-.ml.cl {font-size:8px;line-height:1.35;text-align:center;}
+.ml.sm { font-size:9px; }
+.ml.num{ font-size:19px; }
+.ml.op { font-size:17px; }
+.ml.ent{ font-size:10px;letter-spacing:1.5px; }
+.ml.cl { font-size:8px;line-height:1.35;text-align:center; }
 
-/* Blue g label on chamfer */
+/* Blue g-shift label on chamfer — bigger than before */
 .cl-lbl{
   font-family:'Share Tech Mono',monospace;
-  font-size:7.5px;font-weight:bold;color:#55ddff;
+  font-size:9px;font-weight:bold;color:#55ddff;
   text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
 }
 
-/* Key variants */
-.fkey .kf{background:#1a1a1a;} .fkey .ml{color:#ffcc00;}
-.gkey .kf{background:#1a1a1a;} .gkey .ml{color:#55ddff;}
-.numk .kf{background:#252525;}
-.opk  .kf{background:#1e1e1e;}
-.clall-k .kf{background:#1e1010;} .clall-k .ml{color:#ff7070;}
+/* ── KEY COLOUR VARIANTS ── */
+.fkey .kf{ background:#1a1a1a; } .fkey .ml{ color:#ffcc00; }
+.gkey .kf{ background:#1a1a1a; } .gkey .ml{ color:#55ddff; }
+.numk .kf{ background:#252525; }
+.opk  .kf{ background:#1e1e1e; }
+.clall-k .kf{ background:#1e1010; } .clall-k .ml{ color:#ff7070; }
 
-.fkey.slit{box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9);}
-.gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
+/* Shift glow */
+.fkey.slit{ box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9); }
+.gkey.slit{ box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9); }
 </style>
 </head>
 <body>
@@ -232,8 +280,8 @@ html,body{
 <div id="shell">
 
   <!-- DISPLAY -->
-  <div class="disp" id="disp">
-    <div class="disp-brand">HP·15C</div>
+  <div class="disp">
+    <div class="disp-brand">Helvetica RPN</div>
     <div class="disp-spacer"></div>
     <div class="stack-rows" id="stackRows"></div>
     <div class="disp-footer">
@@ -249,8 +297,8 @@ html,body{
 
   <div class="keypad" id="kp"></div>
 
-</div><!-- shell -->
-</div><!-- outer -->
+</div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════
@@ -258,11 +306,12 @@ html,body{
 // ═══════════════════════════════════════════
 const SZ=8;
 let stack=new Array(SZ).fill(0);
-let inputStr='', isTyping=false;
-let shiftMode=0; // 0=none,1=f,2=g
+let inputStr='',isTyping=false;
+let shiftMode=0;
 let angleMode='DEG';
-let memory=0, memUsed=false, lastX=0;
+let memory=0,memUsed=false,lastX=0;
 const LBLS=['X','Y','Z','T','5','6','7','8'];
+const REGS=['xreg','yreg','zreg','treg','','','',''];
 
 // ═══════════════════════════════════════════
 // KEY DEFINITIONS
@@ -307,7 +356,6 @@ const KEYS=[
   {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',   fn:'shiftG'              },
   {c:4, r:4, main:'STO',  gold:'FRAC',  blue:'INT',   fn:'sto',   fFn:'frac',  gFn:'intg',  msz:'sm'},
   {c:5, r:4, main:'RCL',  gold:'',      blue:'MEM',   fn:'rcl',                gFn:'rcl',   msz:'sm'},
-  // col 6 = ENTER span continuation
   {c:7, r:4, main:'0',    cls:'numk',   msz:'num',    fn:'d0'                                },
   {c:8, r:4, main:'·',    cls:'numk',   msz:'num',    fn:'dot'                               },
   {c:9, r:4, main:'ABS',  gold:'FRAC',  blue:'RND',   fn:'abs',   fFn:'frac',  gFn:'rnd',   msz:'sm'},
@@ -360,18 +408,14 @@ function buildKeypad(){
 }
 
 // ═══════════════════════════════════════════
-// FORMAT — with thousands commas
+// FORMAT — thousands commas
 // ═══════════════════════════════════════════
 function fmt(n){
   if(!isFinite(n)) return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
   const a=Math.abs(n);
-  // Scientific notation for very large or very small
-  if(a!==0&&(a>=1e13||a<1e-6)){
+  if(a!==0&&(a>=1e13||a<1e-6))
     return n.toExponential(5).replace('e+','e').replace('e-','e−');
-  }
-  // Build string with up to 10 significant figures
   let s=parseFloat(n.toPrecision(10)).toString();
-  // Add thousands separators to integer part
   const dot=s.indexOf('.');
   const intPart=dot>=0?s.slice(0,dot):s;
   const decPart=dot>=0?s.slice(dot):'';
@@ -389,22 +433,18 @@ function render(){
   area.innerHTML='';
   for(let i=SZ-1;i>=0;i--){
     const row=document.createElement('div');
-    row.className='srow'+(i===0?' xreg':i===1?' yreg':'');
-
+    const rc=REGS[i];
+    row.className='srow'+(rc?' '+rc:'');
     const lbl=document.createElement('span');lbl.className='slbl';lbl.textContent=LBLS[i];
     const val=document.createElement('span');val.className='sval';
     val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
     row.appendChild(lbl);row.appendChild(val);
     area.appendChild(row);
   }
-
-  // Indicators
   document.getElementById('annF').className='ind ind-f'+(shiftMode===1?' on':'');
   document.getElementById('annG').className='ind ind-g'+(shiftMode===2?' on':'');
   document.getElementById('annM').className='ind ind-m'+(memUsed?' on':'');
   document.getElementById('angBtn').textContent=angleMode;
-
-  // Shift key glow
   document.querySelectorAll('[data-sk]').forEach(b=>{
     b.classList.remove('slit');
     if(shiftMode===1&&b.dataset.sk==='f') b.classList.add('slit');
@@ -499,6 +539,7 @@ const A={
   sto(){commit();memory=stack[0];memUsed=true;},
   rcl(){commit();pushX(memory);},
 };
+
 function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;}}
 function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r;}
 
@@ -517,7 +558,7 @@ function handleKey(k){
 }
 
 // ═══════════════════════════════════════════
-// KEYBOARD (desktop testing)
+// KEYBOARD (desktop)
 // ═══════════════════════════════════════════
 document.addEventListener('keydown',e=>{
   const map={Enter:'enter',Backspace:'bksp',Escape:'clrAll',
@@ -531,76 +572,9 @@ document.addEventListener('keydown',e=>{
 });
 
 // ═══════════════════════════════════════════
-// ORIENTATION
-//
-// iPhone 13 Pro screen: 390×844 CSS px portrait
-// We always render landscape. Logic:
-//
-//   angle 0   → portrait (camera top)
-//              rotate shell −90° → right col (ops) faces camera/top ✓
-//              shell dims: w=100vh, h=100vw
-//
-//   angle 90  → landscape, camera on LEFT (device rotated CCW)
-//              this is the "other" orientation → rotate 180°
-//              shell dims: w=100vw, h=100vh
-//
-//   angle 180 → portrait upside-down (camera bottom)
-//              rotate shell +90° → right col (ops) faces camera/bottom ✓
-//              shell dims: w=100vh, h=100vw
-//
-//   angle 270 → landscape, camera on RIGHT (device rotated CW)
-//              this is the NATURAL orientation → no rotation
-//              shell dims: w=100vw, h=100vh
-//
-// If the 90/270 behaviour feels swapped on your device, swap the
-// angle 90 and angle 270 cases below.
-// ═══════════════════════════════════════════
-function getAngle(){
-  // screen.orientation.angle is preferred; window.orientation is iOS fallback
-  if(screen&&screen.orientation&&typeof screen.orientation.angle==='number'){
-    return ((screen.orientation.angle%360)+360)%360;
-  }
-  if(typeof window.orientation==='number'){
-    return ((window.orientation%360)+360)%360;
-  }
-  return 0;
-}
-
-function applyOrientation(){
-  const shell=document.getElementById('shell');
-  const angle=getAngle();
-
-  let rot=0, swapDims=false;
-  if(angle===0)   { rot=-90; swapDims=true;  }  // portrait
-  else if(angle===90)  { rot=180; swapDims=false; }  // landscape, camera left
-  else if(angle===180) { rot=90;  swapDims=true;  }  // portrait upside-down
-  else                 { rot=0;   swapDims=false; }  // landscape, camera right (natural)
-
-  if(swapDims){
-    // Shell needs landscape dims inside a portrait viewport
-    shell.style.width='100vh';
-    shell.style.height='100vw';
-    shell.style.marginLeft='-50vh';
-    shell.style.marginTop='-50vw';
-  } else {
-    shell.style.width='100vw';
-    shell.style.height='100vh';
-    shell.style.marginLeft='-50vw';
-    shell.style.marginTop='-50vh';
-  }
-  shell.style.transform=`rotate(${rot}deg)`;
-}
-
-window.addEventListener('orientationchange',()=>setTimeout(applyOrientation,120));
-if(screen&&screen.orientation) screen.orientation.addEventListener('change',()=>setTimeout(applyOrientation,120));
-// Also listen to resize as a belt-and-suspenders fallback
-window.addEventListener('resize',()=>setTimeout(applyOrientation,120));
-
-// ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
 buildKeypad();
-applyOrientation();
 render();
 </script>
 </body>
