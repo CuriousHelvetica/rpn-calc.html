@@ -13,66 +13,133 @@
 
 html,body{
   width:100%;height:100%;
-  background:#111;
+  background:#000;
   overflow:hidden;
   -webkit-user-select:none;user-select:none;
   touch-action:manipulation;
 }
 
-/* Shell always visible — no portrait gate */
-.shell{
-  width:100vw;height:100vh;
+/* Fixed outer container — always fills screen */
+#outer{
+  position:fixed;inset:0;
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  background:#000;
+}
+
+/* Shell — sized and rotated by JS to always appear landscape */
+#shell{
+  position:absolute;
+  top:50%;left:50%;
   background:#161616;
   display:flex;flex-direction:row;
   align-items:stretch;
-  padding:6px env(safe-area-inset-right,10px) 6px env(safe-area-inset-left,10px);
-  gap:10px;
-  /* 180° flip applied via JS when device is upside-down */
-  transition:transform 0.3s ease;
-  transform-origin:center center;
+  /* padding accounts for safe areas on whichever edge is live */
+  padding:6px 10px 6px 10px;
+  gap:9px;
+  transform-origin:50% 50%;
+  transition:transform 0.25s ease;
+  will-change:transform;
 }
 
-/* ── DISPLAY ── */
+/* ── DISPLAY PANEL ── */
 .disp{
-  width:162px;flex-shrink:0;
-  background:#060c05;
-  border-radius:7px;
+  /* width set by JS based on available landscape width */
+  width:200px;
+  flex-shrink:0;
+  background:#050a04;
+  border-radius:8px;
   border:1px solid #182010;
-  box-shadow:inset 0 2px 16px #000,0 0 12px rgba(90,160,40,.07);
+  box-shadow:inset 0 2px 18px #000, 0 0 14px rgba(80,150,30,.08);
   display:flex;flex-direction:column;
-  padding:8px 10px 6px;
+  padding:10px 12px 8px;
+  gap:0;
 }
+
 .disp-brand{
   font-family:'Orbitron',monospace;
-  font-size:10px;font-weight:700;
-  color:#2e4418;letter-spacing:3px;
-  margin-bottom:4px;
+  font-size:11px;font-weight:700;
+  color:#2a3e16;letter-spacing:3px;
+  margin-bottom:0;
+  flex-shrink:0;
 }
-.disp-stack{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;}
-.drow{display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;}
-.dlbl{font-size:9px;color:#1e2e12;width:14px;flex-shrink:0;}
-.dval{font-size:11px;color:#2a3e18;text-align:right;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.drow.xreg .dlbl{color:#80cc40;font-size:10px;}
-.drow.xreg .dval{color:#bbff55;font-size:16px;font-weight:bold;}
-.disp-foot{
-  display:flex;justify-content:space-between;align-items:center;
-  margin-top:5px;padding-top:4px;
-  border-top:1px solid #0c1608;
-  font-size:8px;color:#1e2e12;letter-spacing:1px;
+
+/* Empty spacer at top — the "leave top corner empty" breathing room */
+.disp-spacer{ flex:0.6; }
+
+/* Stack rows */
+.stack-rows{
+  flex:2;
+  display:flex;flex-direction:column;
+  justify-content:flex-end;
+  gap:3px;
 }
-.anns{display:flex;gap:5px;align-items:center;}
-.a-f{color:#ffcc00;font-size:9px;opacity:0.25;transition:opacity .1s;}
-.a-g{color:#55ddff;font-size:9px;opacity:0.25;transition:opacity .1s;}
-.a-m{color:#bbff55;font-size:9px;opacity:0.25;transition:opacity .1s;}
-.a-f.on{opacity:1;} .a-g.on{opacity:1;} .a-m.on{opacity:1;}
-.ang-btn{
-  color:#2a3c16;border:1px solid #1e2e12;border-radius:2px;
-  padding:1px 5px;font-size:8px;letter-spacing:1px;
-  cursor:pointer;-webkit-tap-highlight-color:transparent;
+
+.srow{
+  display:flex;justify-content:space-between;align-items:baseline;
+}
+.slbl{
   font-family:'Share Tech Mono',monospace;
+  font-size:9px;color:#2a401a;
+  width:16px;flex-shrink:0;letter-spacing:.5px;
 }
-.ang-btn:active{color:#bbff55;border-color:#80cc40;}
-.err-line{font-size:8px;color:#ff5050;min-height:10px;text-align:right;margin-top:2px;letter-spacing:1px;}
+.sval{
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px;font-weight:bold;
+  color:#cccccc;
+  text-align:right;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* X register — bright white and larger */
+.srow.xreg .slbl{ color:#80cc40;font-size:10px; }
+.srow.xreg .sval{ color:#ffffff;font-size:20px; }
+
+/* Y register — slightly larger too */
+.srow.yreg .sval{ color:#eeeeee;font-size:14px; }
+
+.disp-footer{
+  flex-shrink:0;
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:8px;padding-top:6px;
+  border-top:1px solid #0e180a;
+}
+
+/* ── INDICATORS: solid squares ── */
+.inds{display:flex;gap:5px;align-items:center;}
+
+.ind{
+  width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:3px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;font-weight:bold;
+  opacity:0.15;
+  transition:opacity .15s;
+  flex-shrink:0;
+}
+.ind.on{opacity:1;}
+
+.ind-f{background:#ffcc00;color:#000;}
+.ind-g{background:#1199dd;color:#fff;}
+.ind-m{background:#888888;color:#fff;}
+
+.ang-btn{
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px;color:#2a3e16;
+  border:1px solid #1e2e12;border-radius:3px;
+  padding:2px 6px;cursor:pointer;letter-spacing:1px;
+  -webkit-tap-highlight-color:transparent;
+}
+.ang-btn:active{color:#fff;border-color:#80cc40;}
+
+.err-line{
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px;color:#ff5050;
+  min-height:11px;text-align:right;
+  margin-top:3px;letter-spacing:1px;
+  flex-shrink:0;
+}
 
 /* ── KEYPAD: 10 cols × 4 rows ── */
 .keypad{
@@ -86,7 +153,7 @@ html,body{
 /* CELL = gold label + button */
 .cell{display:flex;flex-direction:column;gap:0;min-width:0;}
 
-/* Gold f-shift label — on body above button */
+/* Gold f-shift label — floats on body above button */
 .above{
   font-family:'Share Tech Mono',monospace;
   font-size:7.5px;font-weight:bold;
@@ -102,10 +169,10 @@ html,body{
   border-radius:6px;overflow:hidden;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 1px 0 rgba(255,255,255,.15),
     inset 1px 0 0 rgba(255,255,255,.06),
-    inset -1px 0 0 rgba(0,0,0,.3),
-    0 3px 0 rgba(0,0,0,.9),
+    inset -1px 0 0 rgba(0,0,0,.35),
+    0 3px 0 rgba(0,0,0,.95),
     0 4px 8px rgba(0,0,0,.5);
   transition:transform .06s,box-shadow .06s;
 }
@@ -119,7 +186,8 @@ html,body{
   flex:1;display:flex;align-items:center;justify-content:center;
   background:#202020;padding:0 3px;
 }
-/* Chamfer — lower ~18px */
+
+/* Chamfer — lower ~18px, blue label */
 .kc{
   height:18px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -139,7 +207,7 @@ html,body{
 .ml.num{font-size:20px;}
 .ml.op {font-size:18px;}
 .ml.ent{font-size:10px;letter-spacing:1.5px;}
-.ml.cl {font-size:8px;line-height:1.3;text-align:center;}
+.ml.cl {font-size:8px;line-height:1.35;text-align:center;}
 
 /* Blue g label on chamfer */
 .cl-lbl{
@@ -148,30 +216,31 @@ html,body{
   text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
 }
 
-/* Variants */
+/* Key variants */
 .fkey .kf{background:#1a1a1a;} .fkey .ml{color:#ffcc00;}
 .gkey .kf{background:#1a1a1a;} .gkey .ml{color:#55ddff;}
 .numk .kf{background:#252525;}
 .opk  .kf{background:#1e1e1e;}
 .clall-k .kf{background:#1e1010;} .clall-k .ml{color:#ff7070;}
 
-/* shift-active glow */
-.fkey.active-shift{box-shadow:0 0 10px rgba(255,204,0,.5),0 3px 0 rgba(0,0,0,.9);}
-.gkey.active-shift{box-shadow:0 0 10px rgba(85,221,255,.5),0 3px 0 rgba(0,0,0,.9);}
+.fkey.slit{box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9);}
+.gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
 </style>
 </head>
 <body>
-<div class="shell" id="shell">
+<div id="outer">
+<div id="shell">
 
   <!-- DISPLAY -->
-  <div class="disp">
+  <div class="disp" id="disp">
     <div class="disp-brand">HP·15C</div>
-    <div class="disp-stack" id="stackArea"></div>
-    <div class="disp-foot">
-      <div class="anns">
-        <span class="a-f" id="annF">f</span>
-        <span class="a-g" id="annG">g</span>
-        <span class="a-m" id="annM">M</span>
+    <div class="disp-spacer"></div>
+    <div class="stack-rows" id="stackRows"></div>
+    <div class="disp-footer">
+      <div class="inds">
+        <div class="ind ind-f" id="annF">f</div>
+        <div class="ind ind-g" id="annG">g</div>
+        <div class="ind ind-m" id="annM">M</div>
       </div>
       <span class="ang-btn" id="angBtn" onclick="toggleAngle()">DEG</span>
     </div>
@@ -179,29 +248,26 @@ html,body{
   </div>
 
   <div class="keypad" id="kp"></div>
-</div>
+
+</div><!-- shell -->
+</div><!-- outer -->
 
 <script>
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════
-const SZ = 8;
-let stack    = new Array(SZ).fill(0);
-let inputStr = '';
-let isTyping = false;
-let shiftMode = 0;   // 0=none 1=f 2=g
-let angleMode = 'DEG';
-let memory    = 0;
-let memUsed   = false;
-let lastX     = 0;
-const LBLS = ['X','Y','Z','T','5','6','7','8'];
+// ═══════════════════════════════════════════
+const SZ=8;
+let stack=new Array(SZ).fill(0);
+let inputStr='', isTyping=false;
+let shiftMode=0; // 0=none,1=f,2=g
+let angleMode='DEG';
+let memory=0, memUsed=false, lastX=0;
+const LBLS=['X','Y','Z','T','5','6','7','8'];
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // KEY DEFINITIONS
-// main=primary, gold=f-shift label, blue=g-shift label
-// fn / fFn / gFn = action name strings
-// ═══════════════════════════════════════════════════
-const KEYS = [
+// ═══════════════════════════════════════════
+const KEYS=[
   // ROW 1
   {c:1, r:1, main:'√x',   gold:'x²',    blue:'LSTx',  fn:'sqrt',  fFn:'sq',    gFn:'lastx'  },
   {c:2, r:1, main:'eˣ',   gold:'LN',    blue:'%',     fn:'expx',  fFn:'ln',    gFn:'pct'    },
@@ -213,10 +279,9 @@ const KEYS = [
   {c:8, r:1, main:'8',    cls:'numk',   msz:'num',    fn:'d8'                                },
   {c:9, r:1, main:'9',    cls:'numk',   msz:'num',    fn:'d9'                                },
   {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',     fn:'div'                               },
-
   // ROW 2
   {c:1, r:2, main:'π',    gold:'',      blue:'',      fn:'pi'                                },
-  {c:2, r:2, main:'x²',   gold:'',      blue:'∛',     fn:'sq',    gFn:'cbrt'               },
+  {c:2, r:2, main:'x²',   gold:'',      blue:'∛',     fn:'sq',    gFn:'cbrt'                },
   {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',    fn:'sin',   fFn:'asin',  gFn:'toRec'  },
   {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',    fn:'cos',   fFn:'acos',  gFn:'toPol'  },
   {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',    fn:'tan',   fFn:'atan',  gFn:'toHrs'  },
@@ -225,331 +290,317 @@ const KEYS = [
   {c:8, r:2, main:'5',    cls:'numk',   msz:'num',    fn:'d5'                                },
   {c:9, r:2, main:'6',    cls:'numk',   msz:'num',    fn:'d6'                                },
   {c:10,r:2, main:'×',    cls:'opk',    msz:'op',     fn:'mul'                               },
-
   // ROW 3
   {c:1, r:3, main:'%',    gold:'',      blue:'',      fn:'pct'                               },
   {c:2, r:3, main:'MOD',  gold:'',      blue:'',      fn:'mod'                               },
   {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',    fn:'rollDn',             gFn:'rollUp' },
   {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',   fn:'swap',  fFn:'rnd',   gFn:'intg',  msz:'sm'},
   {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',   fn:'bksp',  fFn:'clrAll',gFn:'clx'   },
-  // ENTER spans rows 3-4
   {c:6, r:3, rs:2, main:'ENTER', gold:'', blue:'LSTx', cls:'enter-k', msz:'ent', fn:'enter', gFn:'lastx'},
   {c:7, r:3, main:'1',    cls:'numk',   msz:'num',    fn:'d1'                                },
   {c:8, r:3, main:'2',    cls:'numk',   msz:'num',    fn:'d2'                                },
   {c:9, r:3, main:'3',    cls:'numk',   msz:'num',    fn:'d3'                                },
   {c:10,r:3, main:'−',    cls:'opk',    msz:'op',     fn:'sub'                               },
-
   // ROW 4
   {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'          },
   {c:2, r:4, main:'f',    gold:'',      blue:'',      cls:'fkey',   fn:'shiftF'              },
   {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',   fn:'shiftG'              },
   {c:4, r:4, main:'STO',  gold:'FRAC',  blue:'INT',   fn:'sto',   fFn:'frac',  gFn:'intg',  msz:'sm'},
   {c:5, r:4, main:'RCL',  gold:'',      blue:'MEM',   fn:'rcl',                gFn:'rcl',   msz:'sm'},
-  // col 6 = ENTER continuation
+  // col 6 = ENTER span continuation
   {c:7, r:4, main:'0',    cls:'numk',   msz:'num',    fn:'d0'                                },
   {c:8, r:4, main:'·',    cls:'numk',   msz:'num',    fn:'dot'                               },
   {c:9, r:4, main:'ABS',  gold:'FRAC',  blue:'RND',   fn:'abs',   fFn:'frac',  gFn:'rnd',   msz:'sm'},
   {c:10,r:4, main:'+',    cls:'opk',    msz:'op',     fn:'add'                               },
 ];
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // BUILD KEYPAD
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function buildKeypad(){
-  const kp = document.getElementById('kp');
-  KEYS.forEach(k => {
-    const cell = document.createElement('div');
-    cell.className = 'cell ' + (k.cls||'');
-    cell.style.gridColumn = String(k.c);
-    cell.style.gridRow    = k.rs ? `${k.r}/span ${k.rs}` : String(k.r);
+  const kp=document.getElementById('kp');
+  KEYS.forEach(k=>{
+    const cell=document.createElement('div');
+    cell.className='cell '+(k.cls||'');
+    cell.style.gridColumn=String(k.c);
+    cell.style.gridRow=k.rs?`${k.r}/span ${k.rs}`:String(k.r);
 
-    // Gold above-button label
-    const above = document.createElement('div');
-    above.className = 'above';
-    above.textContent = k.gold || '';
+    const above=document.createElement('div');
+    above.className='above';
+    above.textContent=k.gold||'';
     cell.appendChild(above);
 
-    // Button
-    const btn = document.createElement('div');
-    btn.className = 'k';
-    if(k.cls && (k.cls.includes('fkey')||k.cls.includes('gkey'))) {
-      // store ref for glow
-      btn.dataset.shiftKey = k.cls.includes('fkey') ? 'f' : 'g';
-    }
+    const btn=document.createElement('div');
+    btn.className='k';
+    if(k.cls&&k.cls.includes('fkey')) btn.dataset.sk='f';
+    if(k.cls&&k.cls.includes('gkey')) btn.dataset.sk='g';
 
-    // Face
-    const face = document.createElement('div');
-    face.className = 'kf';
-    const ml = document.createElement('span');
-    ml.className = 'ml' + (k.msz ? ' '+k.msz : '');
-    ml.style.whiteSpace = k.main.includes('\n') ? 'pre-line' : '';
-    ml.textContent = k.main;
+    const face=document.createElement('div');
+    face.className='kf';
+    const ml=document.createElement('span');
+    ml.className='ml'+(k.msz?' '+k.msz:'');
+    if(k.main.includes('\n')) ml.style.whiteSpace='pre-line';
+    ml.textContent=k.main;
     face.appendChild(ml);
     btn.appendChild(face);
 
-    // Chamfer
-    const cham = document.createElement('div');
-    cham.className = 'kc';
+    const cham=document.createElement('div');
+    cham.className='kc';
     if(k.blue){
-      const cl = document.createElement('span');
-      cl.className = 'cl-lbl';
-      cl.textContent = k.blue;
+      const cl=document.createElement('span');
+      cl.className='cl-lbl';cl.textContent=k.blue;
       cham.appendChild(cl);
     }
     btn.appendChild(cham);
 
-    btn.addEventListener('pointerdown', e => { e.preventDefault(); handleKey(k); });
+    btn.addEventListener('pointerdown',e=>{e.preventDefault();handleKey(k);});
     cell.appendChild(btn);
     kp.appendChild(cell);
   });
 }
 
-// ═══════════════════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// FORMAT — with thousands commas
+// ═══════════════════════════════════════════
 function fmt(n){
   if(!isFinite(n)) return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
-  const a = Math.abs(n);
-  if(a!==0 && (a>=1e10||a<1e-7))
+  const a=Math.abs(n);
+  // Scientific notation for very large or very small
+  if(a!==0&&(a>=1e13||a<1e-6)){
     return n.toExponential(5).replace('e+','e').replace('e-','e−');
-  return parseFloat(n.toPrecision(10)).toString();
+  }
+  // Build string with up to 10 significant figures
+  let s=parseFloat(n.toPrecision(10)).toString();
+  // Add thousands separators to integer part
+  const dot=s.indexOf('.');
+  const intPart=dot>=0?s.slice(0,dot):s;
+  const decPart=dot>=0?s.slice(dot):'';
+  const sign=intPart.startsWith('-')?'-':'';
+  const digits=intPart.replace(/^-/,'');
+  const withCommas=digits.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return sign+withCommas+decPart;
 }
 
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
 function render(){
-  // Stack display
-  const area = document.getElementById('stackArea');
+  const area=document.getElementById('stackRows');
   area.innerHTML='';
   for(let i=SZ-1;i>=0;i--){
-    const row = document.createElement('div');
-    row.className = 'drow' + (i===0?' xreg':'');
-    const lbl = document.createElement('span'); lbl.className='dlbl'; lbl.textContent=LBLS[i];
-    const val = document.createElement('span'); val.className='dval';
-    val.textContent = (i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
-    row.appendChild(lbl); row.appendChild(val); area.appendChild(row);
+    const row=document.createElement('div');
+    row.className='srow'+(i===0?' xreg':i===1?' yreg':'');
+
+    const lbl=document.createElement('span');lbl.className='slbl';lbl.textContent=LBLS[i];
+    const val=document.createElement('span');val.className='sval';
+    val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
+    row.appendChild(lbl);row.appendChild(val);
+    area.appendChild(row);
   }
 
-  // Annunciators
-  document.getElementById('annF').className = 'a-f'+(shiftMode===1?' on':'');
-  document.getElementById('annG').className = 'a-g'+(shiftMode===2?' on':'');
-  document.getElementById('annM').className = 'a-m'+(memUsed?' on':'');
-  document.getElementById('angBtn').textContent = angleMode;
+  // Indicators
+  document.getElementById('annF').className='ind ind-f'+(shiftMode===1?' on':'');
+  document.getElementById('annG').className='ind ind-g'+(shiftMode===2?' on':'');
+  document.getElementById('annM').className='ind ind-m'+(memUsed?' on':'');
+  document.getElementById('angBtn').textContent=angleMode;
 
   // Shift key glow
-  document.querySelectorAll('[data-shift-key]').forEach(b=>{
-    b.classList.remove('active-shift');
-    if(shiftMode===1 && b.dataset.shiftKey==='f') b.classList.add('active-shift');
-    if(shiftMode===2 && b.dataset.shiftKey==='g') b.classList.add('active-shift');
+  document.querySelectorAll('[data-sk]').forEach(b=>{
+    b.classList.remove('slit');
+    if(shiftMode===1&&b.dataset.sk==='f') b.classList.add('slit');
+    if(shiftMode===2&&b.dataset.sk==='g') b.classList.add('slit');
   });
 }
 
-function showErr(m){ const e=document.getElementById('errLine'); e.textContent=m; setTimeout(()=>e.textContent='',2500); }
-function clearErr(){ document.getElementById('errLine').textContent=''; }
+function showErr(m){const e=document.getElementById('errLine');e.textContent=m;setTimeout(()=>e.textContent='',2500);}
+function clearErr(){document.getElementById('errLine').textContent='';}
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // STACK HELPERS
-// ═══════════════════════════════════════════════════
-function lift(){ for(let i=SZ-1;i>0;i--) stack[i]=stack[i-1]; }
-function drop(){ for(let i=0;i<SZ-1;i++) stack[i]=stack[i+1]; }
-function pushX(v){ lift(); stack[0]=v; }
-function saveLast(){ lastX=stack[0]; }
+// ═══════════════════════════════════════════
+function lift(){for(let i=SZ-1;i>0;i--) stack[i]=stack[i-1];}
+function drop(){for(let i=0;i<SZ-1;i++) stack[i]=stack[i+1];}
+function pushX(v){lift();stack[0]=v;}
+function saveLast(){lastX=stack[0];}
 function commit(){
-  if(!isTyping) return;
-  const v=parseFloat(inputStr); stack[0]=isNaN(v)?0:v;
-  isTyping=false; inputStr='';
+  if(!isTyping)return;
+  const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;
+  isTyping=false;inputStr='';
 }
 function dgt(d){
-  if(!isTyping){ lift(); inputStr=''; isTyping=true; }
+  if(!isTyping){lift();inputStr='';isTyping=true;}
   inputStr+=d;
 }
-function toRad(x){ return angleMode==='DEG'?x*Math.PI/180:x; }
-function fromRad(x){ return angleMode==='DEG'?x*180/Math.PI:x; }
-function toggleAngle(){ angleMode=angleMode==='DEG'?'RAD':'DEG'; render(); }
+function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
+function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
+function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // ACTIONS
-// ═══════════════════════════════════════════════════
-const A = {
-  shiftF(){ shiftMode=shiftMode===1?0:1; },
-  shiftG(){ shiftMode=shiftMode===2?0:2; },
-
-  // Digits & entry
+// ═══════════════════════════════════════════
+const A={
+  shiftF(){shiftMode=shiftMode===1?0:1;},
+  shiftG(){shiftMode=shiftMode===2?0:2;},
   d0(){dgt('0');},d1(){dgt('1');},d2(){dgt('2');},d3(){dgt('3');},d4(){dgt('4');},
   d5(){dgt('5');},d6(){dgt('6');},d7(){dgt('7');},d8(){dgt('8');},d9(){dgt('9');},
-  dot(){
-    if(!isTyping){ lift(); inputStr='0'; isTyping=true; }
-    if(!inputStr.includes('.')) inputStr+='.';
-  },
-  eex(){
-    if(!isTyping){ lift(); inputStr='1'; isTyping=true; }
-    if(!inputStr.includes('e')) inputStr+='e';
-  },
-  chs(){
+  dot(){if(!isTyping){lift();inputStr='0';isTyping=true;}if(!inputStr.includes('.'))inputStr+='.';},
+  eex(){if(!isTyping){lift();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
+  chs(){if(isTyping){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;}else stack[0]=-stack[0];},
+  pi(){pushX(Math.PI);},
+  enter(){commit();const x=stack[0];lift();stack[0]=x;},
+  rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x;},
+  rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t;},
+  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]];},
+  clx(){commit();stack[0]=0;},
+  bksp(){
     if(isTyping){
-      inputStr = inputStr.startsWith('-') ? inputStr.slice(1) : '-'+inputStr;
-    } else { stack[0]=-stack[0]; }
+      inputStr=inputStr.slice(0,-1);
+      if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}
+    }else{drop();}
   },
-  pi(){ pushX(Math.PI); },
-
-  // Stack
-  enter(){
-    commit();
-    const x=stack[0]; lift(); stack[0]=x;
-  },
-  rollDn(){ commit(); const x=stack[0]; drop(); stack[SZ-1]=x; },
-  rollUp(){ commit(); const t=stack[SZ-1]; for(let i=SZ-1;i>0;i--) stack[i]=stack[i-1]; stack[0]=t; },
-  swap()  { commit(); [stack[0],stack[1]]=[stack[1],stack[0]]; },
-  clx()   { commit(); stack[0]=0; },
-  bksp()  { if(isTyping){ inputStr=inputStr.slice(0,-1); if(inputStr===''||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;} } else { drop(); } },
-  clrAll(){ stack.fill(0); memory=0; memUsed=false; lastX=0; inputStr=''; isTyping=false; },
-  lastx() { pushX(lastX); },
-
-  // Arithmetic
-  add(){ B((y,x)=>y+x); },
-  sub(){ B((y,x)=>y-x); },
-  mul(){ B((y,x)=>y*x); },
-  div(){ B((y,x)=>{ if(x===0){showErr('DIV BY 0');return NaN;} return y/x; }); },
-  mod(){ B((y,x)=>{ if(x===0){showErr('DIV BY 0');return NaN;} return y%x; }); },
-
-  // Percentage operations
-  // % : compute x% of Y, Y preserved (like HP)
-  pct(){
-    commit(); saveLast();
-    const result = stack[1] * stack[0] / 100;
-    stack[0] = result;
-    // Y stays — HP behaviour: Y is not consumed
-  },
-  // Δ% : percent change from Y to X  →  (X-Y)/Y * 100
-  dpct(){ B((y,x)=>{ if(y===0){showErr('DIV BY 0');return NaN;} return (x-y)/y*100; }); },
-  // %T : X as percent of Y  →  X/Y * 100
-  pctt(){ B((y,x)=>{ if(y===0){showErr('DIV BY 0');return NaN;} return x/y*100; }); },
-
-  // Math
-  sqrt()  { U(x=>{ if(x<0){showErr('DOMAIN');return NaN;} return Math.sqrt(x); }); },
-  sq()    { U(x=>x*x); },
-  cbrt()  { U(x=>Math.cbrt(x)); },
-  expx()  { U(x=>Math.exp(x)); },
-  ln()    { U(x=>{ if(x<=0){showErr('DOMAIN');return NaN;} return Math.log(x); }); },
-  pow10() { U(x=>Math.pow(10,x)); },
-  log()   { U(x=>{ if(x<=0){showErr('DOMAIN');return NaN;} return Math.log10(x); }); },
-  yx()    { B((y,x)=>Math.pow(y,x)); },
-  xrty()  { B((y,x)=>{ if(x===0){showErr('DIV BY 0');return NaN;} return Math.pow(y,1/x); }); },
-  recip() { U(x=>{ if(x===0){showErr('DIV BY 0');return NaN;} return 1/x; }); },
-  fact()  { U(x=>{
+  clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;},
+  lastx(){pushX(lastX);},
+  add(){B((y,x)=>y+x);},
+  sub(){B((y,x)=>y-x);},
+  mul(){B((y,x)=>y*x);},
+  div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
+  mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
+  pct(){commit();saveLast();stack[0]=stack[1]*stack[0]/100;},
+  dpct(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
+  pctt(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
+  sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
+  sq(){U(x=>x*x);},
+  cbrt(){U(x=>Math.cbrt(x));},
+  expx(){U(x=>Math.exp(x));},
+  ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);});},
+  pow10(){U(x=>Math.pow(10,x));},
+  log(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log10(x);});},
+  yx(){B((y,x)=>Math.pow(y,x));},
+  xrty(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return Math.pow(y,1/x);});},
+  recip(){U(x=>{if(x===0){showErr('DIV BY 0');return NaN;}return 1/x;});},
+  fact(){U(x=>{
     if(x<0||x!==Math.floor(x)){showErr('DOMAIN');return NaN;}
     if(x>170){showErr('OVERFLOW');return Infinity;}
-    let r=1; for(let i=2;i<=x;i++) r*=i; return r;
-  }); },
-  abs()   { U(x=>Math.abs(x)); },
-  intg()  { U(x=>Math.trunc(x)); },
-  frac()  { U(x=>x-Math.trunc(x)); },
-  rnd()   { U(x=>parseFloat(x.toPrecision(6))); },
-
-  // Trig
-  sin()  { U(x=>Math.sin(toRad(x))); },
-  cos()  { U(x=>Math.cos(toRad(x))); },
-  tan()  { U(x=>Math.tan(toRad(x))); },
-  asin() { U(x=>{ if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.asin(x)); }); },
-  acos() { U(x=>{ if(Math.abs(x)>1){showErr('DOMAIN');return NaN;} return fromRad(Math.acos(x)); }); },
-  atan() { U(x=>fromRad(Math.atan(x))); },
-
-  // Coordinate conversions
-  // →R : polar (r=Y, θ=X) → rectangular pushes x then y  (X=r·cosθ, Y=r·sinθ)
-  toRec(){
-    commit(); saveLast();
-    const th=toRad(stack[0]), r=stack[1];
-    stack[0]=r*Math.cos(th); stack[1]=r*Math.sin(th);
-  },
-  // →P : rectangular (x=Y, y=X) → polar (r, θ)
-  toPol(){
-    commit(); saveLast();
-    const y=stack[0], x=stack[1];
-    stack[0]=fromRad(Math.atan2(y,x)); stack[1]=Math.sqrt(x*x+y*y);
-  },
-  // →H : H.MMSSss → decimal hours  e.g. 1.3045 → 1 + 30/60 + 45/3600
-  toHrs(){
-    U(x=>{
-      const h=Math.trunc(x);
-      const rem=(x-h)*100;
-      const m=Math.trunc(rem);
-      const s=(rem-m)*100;
-      return h + m/60 + s/3600;
-    });
-  },
-
-  // Memory
-  sto(){ commit(); memory=stack[0]; memUsed=true; },
-  rcl(){ commit(); pushX(memory); },
+    let r=1;for(let i=2;i<=x;i++)r*=i;return r;
+  });},
+  abs(){U(x=>Math.abs(x));},
+  intg(){U(x=>Math.trunc(x));},
+  frac(){U(x=>x-Math.trunc(x));},
+  rnd(){U(x=>parseFloat(x.toPrecision(6)));},
+  sin(){U(x=>Math.sin(toRad(x)));},
+  cos(){U(x=>Math.cos(toRad(x)));},
+  tan(){U(x=>Math.tan(toRad(x)));},
+  asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));});},
+  acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));});},
+  atan(){U(x=>fromRad(Math.atan(x)));},
+  toRec(){commit();saveLast();const th=toRad(stack[0]),r=stack[1];stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th);},
+  toPol(){commit();saveLast();const y=stack[0],x=stack[1];stack[0]=fromRad(Math.atan2(y,x));stack[1]=Math.sqrt(x*x+y*y);},
+  toHrs(){U(x=>{const h=Math.trunc(x);const rem=(x-h)*100;const m=Math.trunc(rem);const s=(rem-m)*100;return h+m/60+s/3600;});},
+  sto(){commit();memory=stack[0];memUsed=true;},
+  rcl(){commit();pushX(memory);},
 };
+function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;}}
+function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r;}
 
-function B(fn){
-  commit(); saveLast();
-  const x=stack[0],y=stack[1];
-  const r=fn(y,x);
-  if(r!==undefined&&!isNaN(r)){ drop(); stack[0]=r; }
-}
-function U(fn){
-  commit(); saveLast();
-  const r=fn(stack[0]);
-  if(r!==undefined&&!isNaN(r)) stack[0]=r;
-}
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // DISPATCH
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function handleKey(k){
   clearErr();
-  const isShift = (k.fn==='shiftF'||k.fn==='shiftG');
+  const isShift=(k.fn==='shiftF'||k.fn==='shiftG');
   let fn;
-  if(shiftMode===1&&!isShift){ fn=k.fFn||k.fn; shiftMode=0; }
-  else if(shiftMode===2&&!isShift){ fn=k.gFn||k.fn; shiftMode=0; }
+  if(shiftMode===1&&!isShift){fn=k.fFn||k.fn;shiftMode=0;}
+  else if(shiftMode===2&&!isShift){fn=k.gFn||k.fn;shiftMode=0;}
   else fn=k.fn;
-  if(fn&&A[fn]) A[fn]();
+  if(fn&&A[fn])A[fn]();
   render();
 }
 
-// ═══════════════════════════════════════════════════
-// KEYBOARD SUPPORT (desktop / Mac testing)
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// KEYBOARD (desktop testing)
+// ═══════════════════════════════════════════
 document.addEventListener('keydown',e=>{
-  const map={
-    'Enter':'enter','Backspace':'bksp','Escape':'clrAll',
+  const map={Enter:'enter',Backspace:'bksp',Escape:'clrAll',
     '+':'add','-':'sub','*':'mul','/':'div',
     '0':'d0','1':'d1','2':'d2','3':'d3','4':'d4',
     '5':'d5','6':'d6','7':'d7','8':'d8','9':'d9',
-    '.':'dot','e':'eex','E':'eex',
-    's':'sin','c':'cos','t':'tan','l':'ln','L':'log',
-    'p':'pi','q':'sqrt','r':'rollDn','x':'swap',
-    'n':'chs','a':'abs','!':'fact',
-  };
-  if(map[e.key]){
-    e.preventDefault(); clearErr();
-    if(A[map[e.key]]){ A[map[e.key]](); render(); }
-  }
+    '.':'dot','e':'eex','E':'eex','s':'sin','c':'cos',
+    't':'tan','l':'ln','L':'log','p':'pi','q':'sqrt',
+    'r':'rollDn','x':'swap','n':'chs','a':'abs',};
+  if(map[e.key]){e.preventDefault();clearErr();if(A[map[e.key]]){A[map[e.key]]();render();}}
 });
 
-// ═══════════════════════════════════════════════════
-// ORIENTATION — flip 180° when upside-down, no blocking
-// ═══════════════════════════════════════════════════
-function applyOrientation(){
-  let angle = 0;
-  if(screen.orientation && screen.orientation.angle !== undefined){
-    angle = screen.orientation.angle;
-  } else if(typeof window.orientation === 'number'){
-    angle = window.orientation;
+// ═══════════════════════════════════════════
+// ORIENTATION
+//
+// iPhone 13 Pro screen: 390×844 CSS px portrait
+// We always render landscape. Logic:
+//
+//   angle 0   → portrait (camera top)
+//              rotate shell −90° → right col (ops) faces camera/top ✓
+//              shell dims: w=100vh, h=100vw
+//
+//   angle 90  → landscape, camera on LEFT (device rotated CCW)
+//              this is the "other" orientation → rotate 180°
+//              shell dims: w=100vw, h=100vh
+//
+//   angle 180 → portrait upside-down (camera bottom)
+//              rotate shell +90° → right col (ops) faces camera/bottom ✓
+//              shell dims: w=100vh, h=100vw
+//
+//   angle 270 → landscape, camera on RIGHT (device rotated CW)
+//              this is the NATURAL orientation → no rotation
+//              shell dims: w=100vw, h=100vh
+//
+// If the 90/270 behaviour feels swapped on your device, swap the
+// angle 90 and angle 270 cases below.
+// ═══════════════════════════════════════════
+function getAngle(){
+  // screen.orientation.angle is preferred; window.orientation is iOS fallback
+  if(screen&&screen.orientation&&typeof screen.orientation.angle==='number'){
+    return ((screen.orientation.angle%360)+360)%360;
   }
-  // 180 = portrait upside-down; some devices use -180
-  const flipped = (angle === 180 || angle === -180);
-  document.getElementById('shell').style.transform = flipped ? 'rotate(180deg)' : '';
+  if(typeof window.orientation==='number'){
+    return ((window.orientation%360)+360)%360;
+  }
+  return 0;
 }
 
-window.addEventListener('orientationchange', ()=>{ setTimeout(applyOrientation, 100); });
-if(screen.orientation) screen.orientation.addEventListener('change', applyOrientation);
-applyOrientation();
+function applyOrientation(){
+  const shell=document.getElementById('shell');
+  const angle=getAngle();
 
-// ═══════════════════════════════════════════════════
+  let rot=0, swapDims=false;
+  if(angle===0)   { rot=-90; swapDims=true;  }  // portrait
+  else if(angle===90)  { rot=180; swapDims=false; }  // landscape, camera left
+  else if(angle===180) { rot=90;  swapDims=true;  }  // portrait upside-down
+  else                 { rot=0;   swapDims=false; }  // landscape, camera right (natural)
+
+  if(swapDims){
+    // Shell needs landscape dims inside a portrait viewport
+    shell.style.width='100vh';
+    shell.style.height='100vw';
+    shell.style.marginLeft='-50vh';
+    shell.style.marginTop='-50vw';
+  } else {
+    shell.style.width='100vw';
+    shell.style.height='100vh';
+    shell.style.marginLeft='-50vw';
+    shell.style.marginTop='-50vh';
+  }
+  shell.style.transform=`rotate(${rot}deg)`;
+}
+
+window.addEventListener('orientationchange',()=>setTimeout(applyOrientation,120));
+if(screen&&screen.orientation) screen.orientation.addEventListener('change',()=>setTimeout(applyOrientation,120));
+// Also listen to resize as a belt-and-suspenders fallback
+window.addEventListener('resize',()=>setTimeout(applyOrientation,120));
+
+// ═══════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 buildKeypad();
+applyOrientation();
 render();
 </script>
 </body>
