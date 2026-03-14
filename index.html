@@ -67,10 +67,16 @@ html,body{
     RIGHT = home bar clearance (maps to physical bottom after rotation)
     TOP/BOTTOM = physical right/left edges (no safe area needed)
   */
-  padding-left:  env(safe-area-inset-top, 47px);
-  padding-right: env(safe-area-inset-bottom, 20px);
-  padding-top:   8px;
-  padding-bottom:8px;
+  /*
+    Hardcoded padding — env() values get confused by our CSS rotation.
+    LEFT  → physical TOP  (notch 47px + status bar = ~62px total)
+    RIGHT → physical BOTTOM (keep ops near edge, just 8px gap)
+    TOP/BOTTOM → physical right/left edges
+  */
+  padding-left:   62px;
+  padding-right:   8px;
+  padding-top:     6px;
+  padding-bottom:  6px;
   gap:9px;
 
   /* Fixed — never responds to device rotation */
