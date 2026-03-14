@@ -19,56 +19,63 @@ html,body{
   touch-action:manipulation;
 }
 
-/* Fixed viewport container */
-#outer{
-  position:fixed;
-  top:0;left:0;
-  width:100vw;height:100vh;
-  overflow:hidden;
-  background:#000;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
 /*
-  Shell is always landscape.
-  We rotate it -90deg so the phone is held portrait with camera at top.
-  After -90deg rotation:
-    • shell "top"    → physical LEFT  (notch side)
-    • shell "bottom" → physical RIGHT (home-indicator side)
-    • shell "left"   → physical BOTTOM (ops/right-column side)
-    • shell "right"  → physical TOP   (display/left-side)
+  ROTATION STRATEGY — rotate(+90deg) clockwise:
+  ┌─────────────────────┐  ← physical screen (portrait)
+  │  NOTCH  (top)       │
+  │                     │
+  │                     │
+  │                     │
+  │  HOME BAR (bottom)  │
+  └─────────────────────┘
 
-  Shell width  = 100vh  (fills the tall dimension of portrait viewport)
-  Shell height = 100vw  (fills the narrow dimension)
+  After rotate(+90deg), shell axes map to physical screen:
+    shell LEFT   → physical TOP    (notch side) → display panel here
+    shell RIGHT  → physical BOTTOM (home bar)   → ops ÷×−+ here
+    shell TOP    → physical RIGHT edge
+    shell BOTTOM → physical LEFT edge
 
-  To clear the notch (≈47px safe area at top of portrait viewport),
-  we add padding-top to the shell in its own coordinate space.
-  After rotation, shell "top" padding → physical left gap → clears notch.
+  So to clear the notch: padding-LEFT on shell = safe-area-inset-top
+  Home bar clearance:   padding-RIGHT on shell = safe-area-inset-bottom
 
-  iPhone 13 Pro: safe-area-inset-top ≈ 47px in portrait.
-  We use env(safe-area-inset-top) with 47px fallback.
+  Shell CSS dimensions (pre-rotation):
+    width  = 100vh  (landscape width fills portrait height after rotation)
+    height = 100vw  (landscape height fills portrait width after rotation)
+
+  Centered via top/left 50% + negative margins.
 */
+
 #shell{
-  position:absolute;
+  position:fixed;
+  top:50%;
+  left:50%;
+
+  /* In shell's own coordinate space (pre-rotation): */
   width:100vh;
   height:100vw;
+  margin-top:calc(-50vw);   /* half of shell's CSS height */
+  margin-left:calc(-50vh);  /* half of shell's CSS width  */
+
   background:#161616;
   display:flex;
   flex-direction:row;
   align-items:stretch;
 
-  /* padding-top clears notch after rotation */
-  padding-top: env(safe-area-inset-top, 47px);
-  padding-bottom: 6px;
-  padding-left:  8px;   /* this becomes physical BOTTOM after rotation */
-  padding-right: 8px;   /* this becomes physical TOP after rotation */
+  /*
+    Padding in shell's own coordinate space:
+    LEFT  = notch clearance (maps to physical top after rotation)
+    RIGHT = home bar clearance (maps to physical bottom after rotation)
+    TOP/BOTTOM = physical right/left edges (no safe area needed)
+  */
+  padding-left:  env(safe-area-inset-top, 47px);
+  padding-right: env(safe-area-inset-bottom, 20px);
+  padding-top:   8px;
+  padding-bottom:8px;
   gap:9px;
 
-  /* Fixed rotation — always landscape, ops at physical bottom */
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
+  /* Fixed — never responds to device rotation */
+  transform:rotate(90deg);
+  transform-origin:50% 50%;
 }
 
 /* ── DISPLAY PANEL ── */
@@ -77,7 +84,7 @@ html,body{
   flex-shrink:0;
   background:#050a04;
   border-radius:8px;
-  border:1px solid #1a1a1a;
+  border:1px solid #1c1c1c;
   box-shadow:inset 0 2px 18px #000;
   display:flex;
   flex-direction:column;
@@ -87,16 +94,13 @@ html,body{
 .disp-brand{
   font-family:'Orbitron',monospace;
   font-size:10px;font-weight:700;
-  color:#cccccc;
+  color:#aaaaaa;
   letter-spacing:2px;
   flex-shrink:0;
-  margin-bottom:0;
 }
 
-/* Breathing room between brand and stack */
-.disp-spacer{ flex:0.5; }
+.disp-spacer{flex:0.5;}
 
-/* Stack rows */
 .stack-rows{
   flex:2;
   display:flex;flex-direction:column;
@@ -104,65 +108,47 @@ html,body{
   gap:3px;
 }
 
-.srow{
-  display:flex;
-  justify-content:space-between;
-  align-items:baseline;
-}
+.srow{display:flex;justify-content:space-between;align-items:baseline;}
 
 .slbl{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;
-  color:#888888;        /* neutral grey — no green */
-  width:16px;
-  flex-shrink:0;
-  letter-spacing:.5px;
+  font-size:9px;color:#666;
+  width:16px;flex-shrink:0;letter-spacing:.5px;
 }
-
 .sval{
   font-family:'Share Tech Mono',monospace;
   font-size:12px;font-weight:bold;
   color:#bbbbbb;
-  text-align:right;
-  flex:1;
+  text-align:right;flex:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
-/* X register — largest, brightest white */
-.srow.xreg .slbl{ color:#ffffff;font-size:10px;font-weight:bold; }
-.srow.xreg .sval{ color:#ffffff;font-size:20px; }
-
-/* Y register — noticeably bigger than rest */
-.srow.yreg .slbl{ color:#dddddd; }
-.srow.yreg .sval{ color:#eeeeee;font-size:14px; }
-
-/* Z and T a touch brighter than 5-8 */
-.srow.zreg .sval,.srow.treg .sval{ color:#cccccc;font-size:12px; }
+.srow.xreg .slbl{color:#fff;font-size:10px;font-weight:bold;}
+.srow.xreg .sval{color:#fff;font-size:20px;}
+.srow.yreg .slbl{color:#ddd;}
+.srow.yreg .sval{color:#eee;font-size:14px;}
 
 .disp-footer{
   flex-shrink:0;
   display:flex;justify-content:space-between;align-items:center;
   margin-top:8px;padding-top:6px;
-  border-top:1px solid #1a1a1a;
+  border-top:1px solid #1c1c1c;
 }
 
-/* ── INDICATORS — solid colour squares ── */
+/* ── INDICATORS ── */
 .inds{display:flex;gap:5px;align-items:center;}
-
 .ind{
   width:22px;height:22px;
   display:flex;align-items:center;justify-content:center;
   border-radius:3px;
   font-family:'Share Tech Mono',monospace;
   font-size:12px;font-weight:bold;
-  opacity:0.15;
-  transition:opacity .15s;
-  flex-shrink:0;
+  opacity:0.15;transition:opacity .15s;flex-shrink:0;
 }
-.ind.on{ opacity:1; }
-.ind-f{ background:#ffcc00;color:#000; }
-.ind-g{ background:#1199dd;color:#fff; }
-.ind-m{ background:#777777;color:#fff; }
+.ind.on{opacity:1;}
+.ind-f{background:#ffcc00;color:#000;}
+.ind-g{background:#1199dd;color:#fff;}
+.ind-m{background:#777;color:#fff;}
 
 .ang-btn{
   font-family:'Share Tech Mono',monospace;
@@ -171,7 +157,7 @@ html,body{
   padding:2px 6px;cursor:pointer;letter-spacing:1px;
   -webkit-tap-highlight-color:transparent;
 }
-.ang-btn:active{ color:#fff;border-color:#888; }
+.ang-btn:active{color:#fff;border-color:#888;}
 
 .err-line{
   font-family:'Share Tech Mono',monospace;
@@ -189,13 +175,9 @@ html,body{
   gap:5px;
 }
 
-/* CELL = gold label + button */
-.cell{
-  display:flex;flex-direction:column;
-  gap:0;min-width:0;
-}
+/* CELL = gold label above + button */
+.cell{display:flex;flex-direction:column;gap:0;min-width:0;}
 
-/* Gold f-shift label above button — bigger and bolder than before */
 .above{
   font-family:'Share Tech Mono',monospace;
   font-size:9px;font-weight:bold;
@@ -207,8 +189,7 @@ html,body{
 
 /* ── BUTTON ── */
 .k{
-  flex:1;
-  display:flex;flex-direction:column;
+  flex:1;display:flex;flex-direction:column;
   border-radius:6px;overflow:hidden;
   cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:
@@ -224,62 +205,52 @@ html,body{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 0 rgba(0,0,0,.9);
 }
 
-/* Face — holds main white label, slightly less dominant than before */
+/* Face */
 .kf{
-  flex:1;
-  display:flex;align-items:center;justify-content:center;
-  background:#202020;
-  padding:0 3px;
-  min-height:0;
+  flex:1;display:flex;align-items:center;justify-content:center;
+  background:#202020;padding:0 3px;min-height:0;
 }
 
-/* Chamfer — taller now, holds blue label prominently */
+/* Chamfer — taller for legible blue text */
 .kc{
-  height:26px;           /* was 18px — much more readable */
-  flex-shrink:0;
+  height:26px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   background:#141414;
   border-top:1px solid #333;
   padding:0 4px;
 }
 
-/* Main white label */
 .ml{
   font-family:'Share Tech Mono',monospace;
   font-size:11px;font-weight:bold;color:#fff;
   text-align:center;line-height:1.1;
   letter-spacing:.3px;white-space:pre;
 }
-.ml.sm { font-size:9px; }
-.ml.num{ font-size:19px; }
-.ml.op { font-size:17px; }
-.ml.ent{ font-size:10px;letter-spacing:1.5px; }
-.ml.cl { font-size:8px;line-height:1.35;text-align:center; }
+.ml.sm {font-size:9px;}
+.ml.num{font-size:19px;}
+.ml.op {font-size:17px;}
+.ml.ent{font-size:10px;letter-spacing:1.5px;}
+.ml.cl {font-size:8px;line-height:1.35;text-align:center;}
 
-/* Blue g-shift label on chamfer — bigger than before */
 .cl-lbl{
   font-family:'Share Tech Mono',monospace;
   font-size:9px;font-weight:bold;color:#55ddff;
   text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
 }
 
-/* ── KEY COLOUR VARIANTS ── */
-.fkey .kf{ background:#1a1a1a; } .fkey .ml{ color:#ffcc00; }
-.gkey .kf{ background:#1a1a1a; } .gkey .ml{ color:#55ddff; }
-.numk .kf{ background:#252525; }
-.opk  .kf{ background:#1e1e1e; }
-.clall-k .kf{ background:#1e1010; } .clall-k .ml{ color:#ff7070; }
-
-/* Shift glow */
-.fkey.slit{ box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9); }
-.gkey.slit{ box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9); }
+/* Key variants */
+.fkey .kf{background:#1a1a1a;} .fkey .ml{color:#ffcc00;}
+.gkey .kf{background:#1a1a1a;} .gkey .ml{color:#55ddff;}
+.numk .kf{background:#252525;}
+.opk  .kf{background:#1e1e1e;}
+.clall-k .kf{background:#1e1010;} .clall-k .ml{color:#ff7070;}
+.fkey.slit{box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9);}
+.gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
 </style>
 </head>
 <body>
-<div id="outer">
 <div id="shell">
 
-  <!-- DISPLAY -->
   <div class="disp">
     <div class="disp-brand">Helvetica RPN</div>
     <div class="disp-spacer"></div>
@@ -298,9 +269,22 @@ html,body{
   <div class="keypad" id="kp"></div>
 
 </div>
-</div>
-
 <script>
+// ═══════════════════════════════════════════
+// ORIENTATION LOCK — attempt API lock, then
+// ignore all orientation events so the fixed
+// rotate(90deg) CSS always wins regardless of
+// what the device does.
+// ═══════════════════════════════════════════
+(function(){
+  // Try to lock to portrait so the OS doesn't fight us
+  if(screen && screen.orientation && screen.orientation.lock){
+    screen.orientation.lock('portrait-primary').catch(()=>{});
+  }
+  // Belt-and-suspenders: if the browser fires orientation events,
+  // do nothing — our CSS transform is unconditional.
+})();
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -311,13 +295,13 @@ let shiftMode=0;
 let angleMode='DEG';
 let memory=0,memUsed=false,lastX=0;
 const LBLS=['X','Y','Z','T','5','6','7','8'];
-const REGS=['xreg','yreg','zreg','treg','','','',''];
+const REGS=['xreg','yreg','','','','','',''];
 
 // ═══════════════════════════════════════════
-// KEY DEFINITIONS
+// KEY TABLE
 // ═══════════════════════════════════════════
 const KEYS=[
-  // ROW 1
+  // ROW 1 — top row, becomes physical RIGHT side after rotation
   {c:1, r:1, main:'√x',   gold:'x²',    blue:'LSTx',  fn:'sqrt',  fFn:'sq',    gFn:'lastx'  },
   {c:2, r:1, main:'eˣ',   gold:'LN',    blue:'%',     fn:'expx',  fFn:'ln',    gFn:'pct'    },
   {c:3, r:1, main:'10ˣ',  gold:'LOG',   blue:'Δ%',    fn:'pow10', fFn:'log',   gFn:'dpct'   },
@@ -350,7 +334,7 @@ const KEYS=[
   {c:8, r:3, main:'2',    cls:'numk',   msz:'num',    fn:'d2'                                },
   {c:9, r:3, main:'3',    cls:'numk',   msz:'num',    fn:'d3'                                },
   {c:10,r:3, main:'−',    cls:'opk',    msz:'op',     fn:'sub'                               },
-  // ROW 4
+  // ROW 4 — bottom row, becomes physical LEFT side after rotation
   {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'          },
   {c:2, r:4, main:'f',    gold:'',      blue:'',      cls:'fkey',   fn:'shiftF'              },
   {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',   fn:'shiftG'              },
@@ -363,7 +347,7 @@ const KEYS=[
 ];
 
 // ═══════════════════════════════════════════
-// BUILD KEYPAD
+// BUILD
 // ═══════════════════════════════════════════
 function buildKeypad(){
   const kp=document.getElementById('kp');
@@ -374,55 +358,48 @@ function buildKeypad(){
     cell.style.gridRow=k.rs?`${k.r}/span ${k.rs}`:String(k.r);
 
     const above=document.createElement('div');
-    above.className='above';
-    above.textContent=k.gold||'';
+    above.className='above';above.textContent=k.gold||'';
     cell.appendChild(above);
 
     const btn=document.createElement('div');
     btn.className='k';
-    if(k.cls&&k.cls.includes('fkey')) btn.dataset.sk='f';
-    if(k.cls&&k.cls.includes('gkey')) btn.dataset.sk='g';
+    if(k.cls&&k.cls.includes('fkey'))btn.dataset.sk='f';
+    if(k.cls&&k.cls.includes('gkey'))btn.dataset.sk='g';
 
-    const face=document.createElement('div');
-    face.className='kf';
+    const face=document.createElement('div');face.className='kf';
     const ml=document.createElement('span');
     ml.className='ml'+(k.msz?' '+k.msz:'');
-    if(k.main.includes('\n')) ml.style.whiteSpace='pre-line';
+    if(k.main.includes('\n'))ml.style.whiteSpace='pre-line';
     ml.textContent=k.main;
-    face.appendChild(ml);
-    btn.appendChild(face);
+    face.appendChild(ml);btn.appendChild(face);
 
-    const cham=document.createElement('div');
-    cham.className='kc';
+    const cham=document.createElement('div');cham.className='kc';
     if(k.blue){
       const cl=document.createElement('span');
       cl.className='cl-lbl';cl.textContent=k.blue;
       cham.appendChild(cl);
     }
     btn.appendChild(cham);
-
     btn.addEventListener('pointerdown',e=>{e.preventDefault();handleKey(k);});
-    cell.appendChild(btn);
-    kp.appendChild(cell);
+    cell.appendChild(btn);kp.appendChild(cell);
   });
 }
 
 // ═══════════════════════════════════════════
-// FORMAT — thousands commas
+// FORMAT
 // ═══════════════════════════════════════════
 function fmt(n){
-  if(!isFinite(n)) return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
+  if(!isFinite(n))return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
   const a=Math.abs(n);
   if(a!==0&&(a>=1e13||a<1e-6))
     return n.toExponential(5).replace('e+','e').replace('e-','e−');
   let s=parseFloat(n.toPrecision(10)).toString();
   const dot=s.indexOf('.');
-  const intPart=dot>=0?s.slice(0,dot):s;
-  const decPart=dot>=0?s.slice(dot):'';
-  const sign=intPart.startsWith('-')?'-':'';
-  const digits=intPart.replace(/^-/,'');
-  const withCommas=digits.replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  return sign+withCommas+decPart;
+  const intP=dot>=0?s.slice(0,dot):s;
+  const decP=dot>=0?s.slice(dot):'';
+  const sign=intP.startsWith('-')?'-':'';
+  const d=intP.replace(/^-/,'');
+  return sign+d.replace(/\B(?=(\d{3})+(?!\d))/g,',')+decP;
 }
 
 // ═══════════════════════════════════════════
@@ -433,13 +410,11 @@ function render(){
   area.innerHTML='';
   for(let i=SZ-1;i>=0;i--){
     const row=document.createElement('div');
-    const rc=REGS[i];
-    row.className='srow'+(rc?' '+rc:'');
+    row.className='srow'+(REGS[i]?' '+REGS[i]:'');
     const lbl=document.createElement('span');lbl.className='slbl';lbl.textContent=LBLS[i];
     const val=document.createElement('span');val.className='sval';
     val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
-    row.appendChild(lbl);row.appendChild(val);
-    area.appendChild(row);
+    row.appendChild(lbl);row.appendChild(val);area.appendChild(row);
   }
   document.getElementById('annF').className='ind ind-f'+(shiftMode===1?' on':'');
   document.getElementById('annG').className='ind ind-g'+(shiftMode===2?' on':'');
@@ -447,8 +422,8 @@ function render(){
   document.getElementById('angBtn').textContent=angleMode;
   document.querySelectorAll('[data-sk]').forEach(b=>{
     b.classList.remove('slit');
-    if(shiftMode===1&&b.dataset.sk==='f') b.classList.add('slit');
-    if(shiftMode===2&&b.dataset.sk==='g') b.classList.add('slit');
+    if(shiftMode===1&&b.dataset.sk==='f')b.classList.add('slit');
+    if(shiftMode===2&&b.dataset.sk==='g')b.classList.add('slit');
   });
 }
 
@@ -458,8 +433,8 @@ function clearErr(){document.getElementById('errLine').textContent='';}
 // ═══════════════════════════════════════════
 // STACK HELPERS
 // ═══════════════════════════════════════════
-function lift(){for(let i=SZ-1;i>0;i--) stack[i]=stack[i-1];}
-function drop(){for(let i=0;i<SZ-1;i++) stack[i]=stack[i+1];}
+function lift(){for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];}
+function drop(){for(let i=0;i<SZ-1;i++)stack[i]=stack[i+1];}
 function pushX(v){lift();stack[0]=v;}
 function saveLast(){lastX=stack[0];}
 function commit(){
@@ -467,10 +442,7 @@ function commit(){
   const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;
   isTyping=false;inputStr='';
 }
-function dgt(d){
-  if(!isTyping){lift();inputStr='';isTyping=true;}
-  inputStr+=d;
-}
+function dgt(d){if(!isTyping){lift();inputStr='';isTyping=true;}inputStr+=d;}
 function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
 function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
 function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
@@ -493,24 +465,19 @@ const A={
   swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]];},
   clx(){commit();stack[0]=0;},
   bksp(){
-    if(isTyping){
-      inputStr=inputStr.slice(0,-1);
-      if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}
-    }else{drop();}
+    if(isTyping){inputStr=inputStr.slice(0,-1);if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}}
+    else{drop();}
   },
   clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;},
   lastx(){pushX(lastX);},
-  add(){B((y,x)=>y+x);},
-  sub(){B((y,x)=>y-x);},
-  mul(){B((y,x)=>y*x);},
+  add(){B((y,x)=>y+x);},sub(){B((y,x)=>y-x);},mul(){B((y,x)=>y*x);},
   div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
   mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
   pct(){commit();saveLast();stack[0]=stack[1]*stack[0]/100;},
   dpct(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
   pctt(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
   sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
-  sq(){U(x=>x*x);},
-  cbrt(){U(x=>Math.cbrt(x));},
+  sq(){U(x=>x*x);},cbrt(){U(x=>Math.cbrt(x));},
   expx(){U(x=>Math.exp(x));},
   ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);});},
   pow10(){U(x=>Math.pow(10,x));},
@@ -518,18 +485,10 @@ const A={
   yx(){B((y,x)=>Math.pow(y,x));},
   xrty(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return Math.pow(y,1/x);});},
   recip(){U(x=>{if(x===0){showErr('DIV BY 0');return NaN;}return 1/x;});},
-  fact(){U(x=>{
-    if(x<0||x!==Math.floor(x)){showErr('DOMAIN');return NaN;}
-    if(x>170){showErr('OVERFLOW');return Infinity;}
-    let r=1;for(let i=2;i<=x;i++)r*=i;return r;
-  });},
-  abs(){U(x=>Math.abs(x));},
-  intg(){U(x=>Math.trunc(x));},
-  frac(){U(x=>x-Math.trunc(x));},
+  fact(){U(x=>{if(x<0||x!==Math.floor(x)){showErr('DOMAIN');return NaN;}if(x>170){showErr('OVERFLOW');return Infinity;}let r=1;for(let i=2;i<=x;i++)r*=i;return r;});},
+  abs(){U(x=>Math.abs(x));},intg(){U(x=>Math.trunc(x));},frac(){U(x=>x-Math.trunc(x));},
   rnd(){U(x=>parseFloat(x.toPrecision(6)));},
-  sin(){U(x=>Math.sin(toRad(x)));},
-  cos(){U(x=>Math.cos(toRad(x)));},
-  tan(){U(x=>Math.tan(toRad(x)));},
+  sin(){U(x=>Math.sin(toRad(x)));},cos(){U(x=>Math.cos(toRad(x)));},tan(){U(x=>Math.tan(toRad(x)));},
   asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));});},
   acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));});},
   atan(){U(x=>fromRad(Math.atan(x)));},
@@ -539,13 +498,9 @@ const A={
   sto(){commit();memory=stack[0];memUsed=true;},
   rcl(){commit();pushX(memory);},
 };
-
 function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;}}
 function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r;}
 
-// ═══════════════════════════════════════════
-// DISPATCH
-// ═══════════════════════════════════════════
 function handleKey(k){
   clearErr();
   const isShift=(k.fn==='shiftF'||k.fn==='shiftG');
@@ -557,9 +512,7 @@ function handleKey(k){
   render();
 }
 
-// ═══════════════════════════════════════════
-// KEYBOARD (desktop)
-// ═══════════════════════════════════════════
+// Desktop keyboard
 document.addEventListener('keydown',e=>{
   const map={Enter:'enter',Backspace:'bksp',Escape:'clrAll',
     '+':'add','-':'sub','*':'mul','/':'div',
@@ -571,9 +524,6 @@ document.addEventListener('keydown',e=>{
   if(map[e.key]){e.preventDefault();clearErr();if(A[map[e.key]]){A[map[e.key]]();render();}}
 });
 
-// ═══════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════
 buildKeypad();
 render();
 </script>
