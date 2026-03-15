@@ -14,108 +14,62 @@
 html,body{
   width:100%;height:100%;
   background:#000;
+  /* NO overflow:hidden here — it clips position:fixed children in WebKit */
   overflow:hidden;
+  touch-action:none;
   -webkit-user-select:none;user-select:none;
-  touch-action:manipulation;
 }
 
 /*
-  ROTATION STRATEGY — rotate(+90deg) clockwise:
-  ┌─────────────────────┐  ← physical screen (portrait)
-  │  NOTCH  (top)       │
-  │                     │
-  │                     │
-  │                     │
-  │  HOME BAR (bottom)  │
-  └─────────────────────┘
+  #shell is always landscape-sized.
+  JS sets its exact pixel width/height and transform on every resize/orientationchange.
 
-  After rotate(+90deg), shell axes map to physical screen:
-    shell LEFT   → physical TOP    (notch side) → display panel here
-    shell RIGHT  → physical BOTTOM (home bar)   → ops ÷×−+ here
-    shell TOP    → physical RIGHT edge
-    shell BOTTOM → physical LEFT edge
+  Portrait phone:   shell width=innerHeight, height=innerWidth, rotate(90deg)
+  Landscape phone:  shell width=innerWidth,  height=innerHeight, rotate(0deg)
 
-  So to clear the notch: padding-LEFT on shell = safe-area-inset-top
-  Home bar clearance:   padding-RIGHT on shell = safe-area-inset-bottom
-
-  Shell CSS dimensions (pre-rotation):
-    width  = 100vh  (landscape width fills portrait height after rotation)
-    height = 100vw  (landscape height fills portrait width after rotation)
-
-  Centered via top/left 50% + negative margins.
+  Padding (in shell's own CSS coordinate space):
+    padding-left  → physical TOP  (notch + status bar ≈ 62px)
+    padding-right → physical BOTTOM (home indicator ≈ 34px, use 40px for comfort)
+    padding-top/bottom → physical right/left edges (no safe areas needed)
 */
-
 #shell{
   position:fixed;
-  top:50%;
-  left:50%;
-
-  /* In shell's own coordinate space (pre-rotation): */
-  width:100vh;
-  height:100vw;
-  margin-top:calc(-50vw);   /* half of shell's CSS height */
-  margin-left:calc(-50vh);  /* half of shell's CSS width  */
-
-  background:#161616;
   display:flex;
   flex-direction:row;
   align-items:stretch;
-
-  /*
-    Padding in shell's own coordinate space:
-    LEFT  = notch clearance (maps to physical top after rotation)
-    RIGHT = home bar clearance (maps to physical bottom after rotation)
-    TOP/BOTTOM = physical right/left edges (no safe area needed)
-  */
-  /*
-    Hardcoded padding — env() values get confused by our CSS rotation.
-    LEFT  → physical TOP  (notch 47px + status bar = ~62px total)
-    RIGHT → physical BOTTOM (keep ops near edge, just 8px gap)
-    TOP/BOTTOM → physical right/left edges
-  */
-  padding-left:   62px;
-  padding-right:   8px;
-  padding-top:     6px;
-  padding-bottom:  6px;
+  background:#161616;
   gap:9px;
 
-  /* Fixed — never responds to device rotation */
-  transform:rotate(90deg);
-  transform-origin:50% 50%;
+  /* Padding constants — safe for iPhone 13 Pro in portrait+rotated layout */
+  padding-left:   62px;   /* physical top: notch(47) + status bar margin */
+  padding-right:  40px;   /* physical bottom: home indicator(34) + 6px gap */
+  padding-top:     6px;
+  padding-bottom:  6px;
+
+  /* width, height, top, left, transform all set by layoutShell() */
 }
 
-/* ── DISPLAY PANEL ── */
+/* ── DISPLAY ── */
 .disp{
-  width:200px;
-  flex-shrink:0;
+  width:200px;flex-shrink:0;
   background:#050a04;
   border-radius:8px;
   border:1px solid #1c1c1c;
   box-shadow:inset 0 2px 18px #000;
-  display:flex;
-  flex-direction:column;
+  display:flex;flex-direction:column;
   padding:10px 12px 8px;
 }
-
 .disp-brand{
   font-family:'Orbitron',monospace;
   font-size:10px;font-weight:700;
-  color:#aaaaaa;
-  letter-spacing:2px;
-  flex-shrink:0;
+  color:#aaaaaa;letter-spacing:2px;flex-shrink:0;
 }
-
 .disp-spacer{flex:0.5;}
-
 .stack-rows{
-  flex:2;
-  display:flex;flex-direction:column;
-  justify-content:flex-end;
-  gap:3px;
+  flex:2;display:flex;flex-direction:column;
+  justify-content:flex-end;gap:3px;
 }
-
 .srow{display:flex;justify-content:space-between;align-items:baseline;}
-
 .slbl{
   font-family:'Share Tech Mono',monospace;
   font-size:9px;color:#666;
@@ -123,33 +77,24 @@ html,body{
 }
 .sval{
   font-family:'Share Tech Mono',monospace;
-  font-size:12px;font-weight:bold;
-  color:#bbbbbb;
+  font-size:12px;font-weight:bold;color:#bbbbbb;
   text-align:right;flex:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-
 .srow.xreg .slbl{color:#fff;font-size:10px;font-weight:bold;}
 .srow.xreg .sval{color:#fff;font-size:20px;}
 .srow.yreg .slbl{color:#ddd;}
 .srow.yreg .sval{color:#eee;font-size:14px;}
 
 .disp-footer{
-  flex-shrink:0;
-  display:flex;justify-content:space-between;align-items:center;
-  margin-top:8px;padding-top:6px;
-  border-top:1px solid #1c1c1c;
+  flex-shrink:0;display:flex;justify-content:space-between;align-items:center;
+  margin-top:8px;padding-top:6px;border-top:1px solid #1c1c1c;
 }
-
-/* ── INDICATORS ── */
 .inds{display:flex;gap:5px;align-items:center;}
 .ind{
-  width:22px;height:22px;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:3px;
-  font-family:'Share Tech Mono',monospace;
-  font-size:12px;font-weight:bold;
-  opacity:0.15;transition:opacity .15s;flex-shrink:0;
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:3px;font-family:'Share Tech Mono',monospace;
+  font-size:12px;font-weight:bold;opacity:0.15;transition:opacity .15s;flex-shrink:0;
 }
 .ind.on{opacity:1;}
 .ind-f{background:#ffcc00;color:#000;}
@@ -158,42 +103,31 @@ html,body{
 
 .ang-btn{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;color:#555;
-  border:1px solid #333;border-radius:3px;
+  font-size:9px;color:#555;border:1px solid #333;border-radius:3px;
   padding:2px 6px;cursor:pointer;letter-spacing:1px;
   -webkit-tap-highlight-color:transparent;
 }
 .ang-btn:active{color:#fff;border-color:#888;}
-
 .err-line{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;color:#ff5050;
-  min-height:11px;text-align:right;
-  margin-top:3px;letter-spacing:1px;flex-shrink:0;
+  font-size:9px;color:#ff5050;min-height:11px;
+  text-align:right;margin-top:3px;letter-spacing:1px;flex-shrink:0;
 }
 
-/* ── KEYPAD: 10 cols × 4 rows ── */
+/* ── KEYPAD ── */
 .keypad{
-  flex:1;
-  display:grid;
+  flex:1;display:grid;
   grid-template-columns:repeat(10,1fr);
   grid-template-rows:repeat(4,1fr);
   gap:5px;
 }
-
-/* CELL = gold label above + button */
 .cell{display:flex;flex-direction:column;gap:0;min-width:0;}
-
 .above{
   font-family:'Share Tech Mono',monospace;
-  font-size:9px;font-weight:bold;
-  color:#ffcc00;
-  text-align:center;
-  height:13px;line-height:13px;
+  font-size:9px;font-weight:bold;color:#ffcc00;
+  text-align:center;height:13px;line-height:13px;
   letter-spacing:.3px;white-space:nowrap;overflow:hidden;
 }
-
-/* ── BUTTON ── */
 .k{
   flex:1;display:flex;flex-direction:column;
   border-radius:6px;overflow:hidden;
@@ -210,41 +144,30 @@ html,body{
   transform:translateY(2px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 0 rgba(0,0,0,.9);
 }
-
-/* Face */
 .kf{
   flex:1;display:flex;align-items:center;justify-content:center;
   background:#202020;padding:0 3px;min-height:0;
 }
-
-/* Chamfer — taller for legible blue text */
 .kc{
   height:26px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  background:#141414;
-  border-top:1px solid #333;
-  padding:0 4px;
+  background:#141414;border-top:1px solid #333;padding:0 4px;
 }
-
 .ml{
   font-family:'Share Tech Mono',monospace;
   font-size:11px;font-weight:bold;color:#fff;
-  text-align:center;line-height:1.1;
-  letter-spacing:.3px;white-space:pre;
+  text-align:center;line-height:1.1;letter-spacing:.3px;white-space:pre;
 }
 .ml.sm {font-size:9px;}
 .ml.num{font-size:19px;}
 .ml.op {font-size:17px;}
 .ml.ent{font-size:10px;letter-spacing:1.5px;}
 .ml.cl {font-size:8px;line-height:1.35;text-align:center;}
-
 .cl-lbl{
   font-family:'Share Tech Mono',monospace;
   font-size:9px;font-weight:bold;color:#55ddff;
   text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
 }
-
-/* Key variants */
 .fkey .kf{background:#1a1a1a;} .fkey .ml{color:#ffcc00;}
 .gkey .kf{background:#1a1a1a;} .gkey .ml{color:#55ddff;}
 .numk .kf{background:#252525;}
@@ -256,7 +179,6 @@ html,body{
 </head>
 <body>
 <div id="shell">
-
   <div class="disp">
     <div class="disp-brand">Helvetica RPN</div>
     <div class="disp-spacer"></div>
@@ -271,25 +193,51 @@ html,body{
     </div>
     <div class="err-line" id="errLine"></div>
   </div>
-
   <div class="keypad" id="kp"></div>
-
 </div>
+
 <script>
 // ═══════════════════════════════════════════
-// ORIENTATION LOCK — attempt API lock, then
-// ignore all orientation events so the fixed
-// rotate(90deg) CSS always wins regardless of
-// what the device does.
+// LAYOUT — always show landscape regardless
+// of how the device is held
 // ═══════════════════════════════════════════
-(function(){
-  // Try to lock to portrait so the OS doesn't fight us
-  if(screen && screen.orientation && screen.orientation.lock){
-    screen.orientation.lock('portrait-primary').catch(()=>{});
+function layoutShell() {
+  const shell = document.getElementById('shell');
+  const VW = window.innerWidth;
+  const VH = window.innerHeight;
+
+  if (VH >= VW) {
+    // Device is portrait (or square).
+    // Rotate the shell 90deg clockwise so it appears landscape.
+    // After rotate(90deg): CSS-left→physical-top, CSS-right→physical-bottom.
+    // Shell CSS: width=VH (fills portrait height), height=VW (fills portrait width).
+    const W = VH;  // shell CSS width  = portrait height (tall dimension)
+    const H = VW;  // shell CSS height = portrait width  (narrow dimension)
+    shell.style.width     = W + 'px';
+    shell.style.height    = H + 'px';
+    // Center the shell. With rotate(90deg) around the element's center,
+    // we need the CSS center to sit at the viewport center (VW/2, VH/2).
+    // CSS center = (left + W/2, top + H/2)
+    // → left = VW/2 - W/2,  top = VH/2 - H/2
+    shell.style.left      = (VW / 2 - W / 2) + 'px';  // negative
+    shell.style.top       = (VH / 2 - H / 2) + 'px';  // positive
+    shell.style.transform = 'rotate(90deg)';
+  } else {
+    // Device is landscape (iOS rotated the viewport to match phone rotation).
+    // No extra rotation needed — just fill the landscape viewport directly.
+    // CSS-left = physical-left (notch side), CSS-right = physical-right.
+    shell.style.width     = VW + 'px';
+    shell.style.height    = VH + 'px';
+    shell.style.left      = '0px';
+    shell.style.top       = '0px';
+    shell.style.transform = 'none';
   }
-  // Belt-and-suspenders: if the browser fires orientation events,
-  // do nothing — our CSS transform is unconditional.
-})();
+}
+
+// Run on load and on every resize / orientation change
+window.addEventListener('resize',            () => setTimeout(layoutShell, 50));
+window.addEventListener('orientationchange', () => setTimeout(layoutShell, 150));
+layoutShell();
 
 // ═══════════════════════════════════════════
 // STATE
@@ -307,49 +255,48 @@ const REGS=['xreg','yreg','','','','','',''];
 // KEY TABLE
 // ═══════════════════════════════════════════
 const KEYS=[
-  // ROW 1 — top row, becomes physical RIGHT side after rotation
-  {c:1, r:1, main:'√x',   gold:'x²',    blue:'LSTx',  fn:'sqrt',  fFn:'sq',    gFn:'lastx'  },
-  {c:2, r:1, main:'eˣ',   gold:'LN',    blue:'%',     fn:'expx',  fFn:'ln',    gFn:'pct'    },
-  {c:3, r:1, main:'10ˣ',  gold:'LOG',   blue:'Δ%',    fn:'pow10', fFn:'log',   gFn:'dpct'   },
-  {c:4, r:1, main:'yˣ',   gold:'x√y',   blue:'%T',    fn:'yx',    fFn:'xrty',  gFn:'pctt'   },
-  {c:5, r:1, main:'1/x',  gold:'x!',    blue:'ABS',   fn:'recip', fFn:'fact',  gFn:'abs'    },
-  {c:6, r:1, main:'CHS',  gold:'INT',   blue:'FRAC',  fn:'chs',   fFn:'intg',  gFn:'frac'   },
-  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',    fn:'d7'                                },
-  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',    fn:'d8'                                },
-  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',    fn:'d9'                                },
-  {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',     fn:'div'                               },
-  // ROW 2
-  {c:1, r:2, main:'π',    gold:'',      blue:'',      fn:'pi'                                },
-  {c:2, r:2, main:'x²',   gold:'',      blue:'∛',     fn:'sq',    gFn:'cbrt'                },
-  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',    fn:'sin',   fFn:'asin',  gFn:'toRec'  },
-  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',    fn:'cos',   fFn:'acos',  gFn:'toPol'  },
-  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',    fn:'tan',   fFn:'atan',  gFn:'toHrs'  },
-  {c:6, r:2, main:'EEX',  gold:'',      blue:'',      fn:'eex'                               },
-  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',    fn:'d4'                                },
-  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',    fn:'d5'                                },
-  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',    fn:'d6'                                },
-  {c:10,r:2, main:'×',    cls:'opk',    msz:'op',     fn:'mul'                               },
-  // ROW 3
-  {c:1, r:3, main:'%',    gold:'',      blue:'',      fn:'pct'                               },
-  {c:2, r:3, main:'MOD',  gold:'',      blue:'',      fn:'mod'                               },
-  {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',    fn:'rollDn',             gFn:'rollUp' },
-  {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',   fn:'swap',  fFn:'rnd',   gFn:'intg',  msz:'sm'},
-  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',   fn:'bksp',  fFn:'clrAll',gFn:'clx'   },
+  {c:1, r:1, main:'√x',   gold:'x²',    blue:'LSTx',  fn:'sqrt',  fFn:'sq',    gFn:'lastx' },
+  {c:2, r:1, main:'eˣ',   gold:'LN',    blue:'%',     fn:'expx',  fFn:'ln',    gFn:'pct'   },
+  {c:3, r:1, main:'10ˣ',  gold:'LOG',   blue:'Δ%',    fn:'pow10', fFn:'log',   gFn:'dpct'  },
+  {c:4, r:1, main:'yˣ',   gold:'x√y',   blue:'%T',    fn:'yx',    fFn:'xrty',  gFn:'pctt'  },
+  {c:5, r:1, main:'1/x',  gold:'x!',    blue:'ABS',   fn:'recip', fFn:'fact',  gFn:'abs'   },
+  {c:6, r:1, main:'CHS',  gold:'INT',   blue:'FRAC',  fn:'chs',   fFn:'intg',  gFn:'frac'  },
+  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',    fn:'d7'                               },
+  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',    fn:'d8'                               },
+  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',    fn:'d9'                               },
+  {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',     fn:'div'                              },
+
+  {c:1, r:2, main:'π',    gold:'',      blue:'',      fn:'pi'                               },
+  {c:2, r:2, main:'x²',   gold:'',      blue:'∛',     fn:'sq',    gFn:'cbrt'               },
+  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',    fn:'sin',   fFn:'asin',  gFn:'toRec' },
+  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',    fn:'cos',   fFn:'acos',  gFn:'toPol' },
+  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',    fn:'tan',   fFn:'atan',  gFn:'toHrs' },
+  {c:6, r:2, main:'EEX',  gold:'',      blue:'',      fn:'eex'                              },
+  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',    fn:'d4'                               },
+  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',    fn:'d5'                               },
+  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',    fn:'d6'                               },
+  {c:10,r:2, main:'×',    cls:'opk',    msz:'op',     fn:'mul'                              },
+
+  {c:1, r:3, main:'%',    gold:'',      blue:'',      fn:'pct'                              },
+  {c:2, r:3, main:'MOD',  gold:'',      blue:'',      fn:'mod'                              },
+  {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',    fn:'rollDn',             gFn:'rollUp'},
+  {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',   fn:'swap',  fFn:'rnd',   gFn:'intg', msz:'sm'},
+  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',   fn:'bksp',  fFn:'clrAll',gFn:'clx'  },
   {c:6, r:3, rs:2, main:'ENTER', gold:'', blue:'LSTx', cls:'enter-k', msz:'ent', fn:'enter', gFn:'lastx'},
-  {c:7, r:3, main:'1',    cls:'numk',   msz:'num',    fn:'d1'                                },
-  {c:8, r:3, main:'2',    cls:'numk',   msz:'num',    fn:'d2'                                },
-  {c:9, r:3, main:'3',    cls:'numk',   msz:'num',    fn:'d3'                                },
-  {c:10,r:3, main:'−',    cls:'opk',    msz:'op',     fn:'sub'                               },
-  // ROW 4 — bottom row, becomes physical LEFT side after rotation
-  {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'          },
-  {c:2, r:4, main:'f',    gold:'',      blue:'',      cls:'fkey',   fn:'shiftF'              },
-  {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',   fn:'shiftG'              },
-  {c:4, r:4, main:'STO',  gold:'FRAC',  blue:'INT',   fn:'sto',   fFn:'frac',  gFn:'intg',  msz:'sm'},
-  {c:5, r:4, main:'RCL',  gold:'',      blue:'MEM',   fn:'rcl',                gFn:'rcl',   msz:'sm'},
-  {c:7, r:4, main:'0',    cls:'numk',   msz:'num',    fn:'d0'                                },
-  {c:8, r:4, main:'·',    cls:'numk',   msz:'num',    fn:'dot'                               },
-  {c:9, r:4, main:'ABS',  gold:'FRAC',  blue:'RND',   fn:'abs',   fFn:'frac',  gFn:'rnd',   msz:'sm'},
-  {c:10,r:4, main:'+',    cls:'opk',    msz:'op',     fn:'add'                               },
+  {c:7, r:3, main:'1',    cls:'numk',   msz:'num',    fn:'d1'                               },
+  {c:8, r:3, main:'2',    cls:'numk',   msz:'num',    fn:'d2'                               },
+  {c:9, r:3, main:'3',    cls:'numk',   msz:'num',    fn:'d3'                               },
+  {c:10,r:3, main:'−',    cls:'opk',    msz:'op',     fn:'sub'                              },
+
+  {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'         },
+  {c:2, r:4, main:'f',    gold:'',      blue:'',      cls:'fkey',  fn:'shiftF'              },
+  {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',  fn:'shiftG'              },
+  {c:4, r:4, main:'STO',  gold:'FRAC',  blue:'INT',   fn:'sto',   fFn:'frac',  gFn:'intg', msz:'sm'},
+  {c:5, r:4, main:'RCL',  gold:'',      blue:'MEM',   fn:'rcl',               gFn:'rcl',  msz:'sm'},
+  {c:7, r:4, main:'0',    cls:'numk',   msz:'num',    fn:'d0'                               },
+  {c:8, r:4, main:'·',    cls:'numk',   msz:'num',    fn:'dot'                              },
+  {c:9, r:4, main:'ABS',  gold:'FRAC',  blue:'RND',   fn:'abs',   fFn:'frac',  gFn:'rnd',  msz:'sm'},
+  {c:10,r:4, main:'+',    cls:'opk',    msz:'op',     fn:'add'                              },
 ];
 
 // ═══════════════════════════════════════════
@@ -382,8 +329,7 @@ function buildKeypad(){
     const cham=document.createElement('div');cham.className='kc';
     if(k.blue){
       const cl=document.createElement('span');
-      cl.className='cl-lbl';cl.textContent=k.blue;
-      cham.appendChild(cl);
+      cl.className='cl-lbl';cl.textContent=k.blue;cham.appendChild(cl);
     }
     btn.appendChild(cham);
     btn.addEventListener('pointerdown',e=>{e.preventDefault();handleKey(k);});
@@ -392,7 +338,7 @@ function buildKeypad(){
 }
 
 // ═══════════════════════════════════════════
-// FORMAT
+// FORMAT — thousands commas
 // ═══════════════════════════════════════════
 function fmt(n){
   if(!isFinite(n))return isNaN(n)?'NaN':(n>0?'+∞':'−∞');
@@ -437,7 +383,7 @@ function showErr(m){const e=document.getElementById('errLine');e.textContent=m;s
 function clearErr(){document.getElementById('errLine').textContent='';}
 
 // ═══════════════════════════════════════════
-// STACK HELPERS
+// STACK
 // ═══════════════════════════════════════════
 function lift(){for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];}
 function drop(){for(let i=0;i<SZ-1;i++)stack[i]=stack[i+1];}
@@ -472,7 +418,7 @@ const A={
   clx(){commit();stack[0]=0;},
   bksp(){
     if(isTyping){inputStr=inputStr.slice(0,-1);if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}}
-    else{drop();}
+    else drop();
   },
   clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;},
   lastx(){pushX(lastX);},
@@ -518,7 +464,7 @@ function handleKey(k){
   render();
 }
 
-// Desktop keyboard
+// Keyboard (desktop testing)
 document.addEventListener('keydown',e=>{
   const map={Enter:'enter',Backspace:'bksp',Escape:'clrAll',
     '+':'add','-':'sub','*':'mul','/':'div',
