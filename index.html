@@ -64,7 +64,31 @@ html,body{
   font-size:10px;font-weight:700;
   color:#aaaaaa;letter-spacing:2px;flex-shrink:0;
 }
-.disp-spacer{flex:0.5;}
+.disp-aux{
+  flex:0.5;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  gap:4px;
+  border-bottom:1px solid #1a1a1a;
+  margin-bottom:4px;
+  padding-bottom:4px;
+}
+.aux-row{display:flex;justify-content:space-between;align-items:baseline;}
+.aux-lbl{
+  font-family:'Share Tech Mono',monospace;
+  font-size:8px;font-weight:bold;letter-spacing:1px;
+  width:32px;flex-shrink:0;
+}
+.aux-lbl.lbl-m   {color:#777;}
+.aux-lbl.lbl-last{color:#555;}
+.aux-val{
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;font-weight:bold;
+  text-align:right;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.aux-val.val-m   {color:#aaaaaa;}
+.aux-val.val-last{color:#666666;}
 .stack-rows{
   flex:2;display:flex;flex-direction:column;
   justify-content:flex-end;gap:3px;
@@ -181,7 +205,16 @@ html,body{
 <div id="shell">
   <div class="disp">
     <div class="disp-brand">Helvetica RPN</div>
-    <div class="disp-spacer"></div>
+    <div class="disp-aux">
+      <div class="aux-row">
+        <span class="aux-lbl lbl-m">MEM</span>
+        <span class="aux-val val-m" id="auxMem">—</span>
+      </div>
+      <div class="aux-row">
+        <span class="aux-lbl lbl-last">LST</span>
+        <span class="aux-val val-last" id="auxLast">—</span>
+      </div>
+    </div>
     <div class="stack-rows" id="stackRows"></div>
     <div class="disp-footer">
       <div class="inds">
@@ -373,6 +406,9 @@ function render(){
   document.getElementById('annG').className='ind ind-g'+(shiftMode===2?' on':'');
   document.getElementById('annM').className='ind ind-m'+(memUsed?' on':'');
   document.getElementById('angBtn').textContent=angleMode;
+  // Aux registers
+  document.getElementById('auxMem').textContent  = memUsed ? fmt(memory) : '—';
+  document.getElementById('auxLast').textContent = lastX!==0 ? fmt(lastX) : '—';
   document.querySelectorAll('[data-sk]').forEach(b=>{
     b.classList.remove('slit');
     if(shiftMode===1&&b.dataset.sk==='f')b.classList.add('slit');
