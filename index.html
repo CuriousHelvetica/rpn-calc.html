@@ -106,6 +106,7 @@
   --theme-icon: '☾';
 }
 
+html{background:var(--body-bg);transition:background .3s;}
 html,body{
   width:100%;height:100%;
   background:var(--body-bg);
@@ -129,7 +130,7 @@ html,body{
 
 /* ── DISPLAY ── */
 .disp{
-  width:200px;flex-shrink:0;
+  width:188px;flex-shrink:0;
   background:var(--disp-bg);
   border-radius:8px;
   border:1px solid var(--disp-border);
@@ -287,8 +288,10 @@ html,body{
   text-align:center;line-height:1;letter-spacing:.3px;white-space:nowrap;
   transition:color .3s;
 }
-.fkey .kf{background:var(--fkey-bg);} .fkey .ml{color:#cc9900;}
-.gkey .kf{background:var(--gkey-bg);} .gkey .ml{color:#0077cc;}
+.fkey .kf{background:var(--fkey-bg);} .fkey .ml{color:#ffcc00;}
+.gkey .kf{background:var(--gkey-bg);} .gkey .ml{color:#44ccff;}
+.light .fkey .ml{color:#aa6600;}
+.light .gkey .ml{color:#0066bb;}
 .numk .kf{background:var(--numk-bg);}
 .opk  .kf{background:var(--opk-bg);}
 .clall-k .kf{background:var(--clall-bg);} .clall-k .ml{color:var(--clall-col);}
@@ -327,47 +330,21 @@ html,body{
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// LAYOUT — always show landscape regardless
-// of how the device is held
-// ═══════════════════════════════════════════
-function layoutShell() {
+// ── LAYOUT: always portrait-held, rotated 90deg, operators at physical bottom ──
+// No resize listeners, no orientation detection. One fixed layout forever.
+(function(){
   const shell = document.getElementById('shell');
-  const VW = window.innerWidth;
-  const VH = window.innerHeight;
-
-  if (VH >= VW) {
-    // Device is portrait (or square).
-    // Rotate the shell 90deg clockwise so it appears landscape.
-    // After rotate(90deg): CSS-left→physical-top, CSS-right→physical-bottom.
-    // Shell CSS: width=VH (fills portrait height), height=VW (fills portrait width).
-    const W = VH;  // shell CSS width  = portrait height (tall dimension)
-    const H = VW;  // shell CSS height = portrait width  (narrow dimension)
-    shell.style.width     = W + 'px';
-    shell.style.height    = H + 'px';
-    // Center the shell. With rotate(90deg) around the element's center,
-    // we need the CSS center to sit at the viewport center (VW/2, VH/2).
-    // CSS center = (left + W/2, top + H/2)
-    // → left = VW/2 - W/2,  top = VH/2 - H/2
-    shell.style.left      = (VW / 2 - W / 2) + 'px';  // negative
-    shell.style.top       = (VH / 2 - H / 2) + 'px';  // positive
-    shell.style.transform = 'rotate(90deg)';
-  } else {
-    // Device is landscape (iOS rotated the viewport to match phone rotation).
-    // No extra rotation needed — just fill the landscape viewport directly.
-    // CSS-left = physical-left (notch side), CSS-right = physical-right.
-    shell.style.width     = VW + 'px';
-    shell.style.height    = VH + 'px';
-    shell.style.left      = '0px';
-    shell.style.top       = '0px';
-    shell.style.transform = 'none';
-  }
-}
-
-// Run on load and on every resize / orientation change
-window.addEventListener('resize',            () => setTimeout(layoutShell, 50));
-window.addEventListener('orientationchange', () => setTimeout(layoutShell, 150));
-layoutShell();
+  const VW = window.screen.width  || window.innerWidth;
+  const VH = window.screen.height || window.innerHeight;
+  // Use the larger dimension as height, smaller as width (portrait assumption)
+  const W = Math.max(VW, VH);  // shell CSS width  = tall dimension
+  const H = Math.min(VW, VH);  // shell CSS height = narrow dimension
+  shell.style.width  = W + 'px';
+  shell.style.height = H + 'px';
+  shell.style.left   = ((VW - W) / 2) + 'px';
+  shell.style.top    = ((VH - H) / 2) + 'px';
+  shell.style.transform = 'rotate(90deg)';
+}());
 
 // ═══════════════════════════════════════════
 // STATE
