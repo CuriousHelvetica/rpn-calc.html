@@ -116,8 +116,23 @@ html,body{
   transition:background .3s;
 }
 
+/*
+  Shell always landscape, rotated 90deg clockwise in a portrait viewport.
+  Pure CSS — no JS timing issues.
+  After rotate(90deg):
+    shell LEFT  → physical TOP   (notch side)   → padding-left clears notch
+    shell RIGHT → physical BOTTOM (home bar)    → padding-right clears home indicator
+  width: 100vh fills the portrait height; height: 100vw fills the portrait width.
+  left/top centre the pre-rotation element so rotation lands flush with screen edges.
+*/
 #shell{
   position:fixed;
+  width:100vh;
+  height:100vw;
+  left:calc(50vw - 50vh);
+  top:calc(50vh - 50vw);
+  transform:rotate(90deg);
+  transform-origin:50% 50%;
   display:flex;flex-direction:row;align-items:stretch;
   background:var(--shell-bg);
   gap:9px;
@@ -330,23 +345,8 @@ html,body{
 </div>
 
 <script>
-// ── LAYOUT: fixed single orientation, portrait-held phone, rotate(90deg) ──
-// shell CSS width  = innerHeight (tall CSS dimension fills portrait height)
-// shell CSS height = innerWidth  (narrow CSS dimension fills portrait width)
-// After rotate(90deg): operators at physical bottom, stack at physical top
-(function(){
-  const shell = document.getElementById('shell');
-  const VW = window.innerWidth;
-  const VH = window.innerHeight;
-  // Always treat as portrait: tall = VH, narrow = VW
-  const W = VH;   // shell CSS width
-  const H = VW;   // shell CSS height
-  shell.style.width     = W + 'px';
-  shell.style.height    = H + 'px';
-  shell.style.left      = Math.round((VW - W) / 2) + 'px';
-  shell.style.top       = Math.round((VH - H) / 2) + 'px';
-  shell.style.transform = 'rotate(90deg)';
-}());
+// ── LAYOUT: pure CSS handles sizing, no JS needed ──
+// rotate(90deg) is set in CSS; shell dimensions via vw/vh units
 
 // ═══════════════════════════════════════════
 // STATE
