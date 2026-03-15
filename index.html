@@ -289,48 +289,53 @@ const REGS=['xreg','yreg','','','','','',''];
 // KEY TABLE
 // ═══════════════════════════════════════════
 const KEYS=[
-  {c:1, r:1, main:'√x',   gold:'x²',    blue:'LSTx',  fn:'sqrt',  fFn:'sq',    gFn:'lastx' },
-  {c:2, r:1, main:'eˣ',   gold:'LN',    blue:'%',     fn:'expx',  fFn:'ln',    gFn:'pct'   },
-  {c:3, r:1, main:'10ˣ',  gold:'LOG',   blue:'Δ%',    fn:'pow10', fFn:'log',   gFn:'dpct'  },
-  {c:4, r:1, main:'yˣ',   gold:'x√y',   blue:'%T',    fn:'yx',    fFn:'xrty',  gFn:'pctt'  },
-  {c:5, r:1, main:'1/x',  gold:'x!',    blue:'ABS',   fn:'recip', fFn:'fact',  gFn:'abs'   },
-  {c:6, r:1, main:'CHS',  gold:'INT',   blue:'FRAC',  fn:'chs',   fFn:'intg',  gFn:'frac'  },
-  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',    fn:'d7'                               },
-  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',    fn:'d8'                               },
-  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',    fn:'d9'                               },
-  {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',     fn:'div'                              },
+  // ROW 1 — powers & logs
+  {c:1, r:1, main:'x²',   gold:'√x',    blue:'',     fn:'sq',    fFn:'sqrt'                  },
+  {c:2, r:1, main:'yˣ',   gold:'x√y',   blue:'%T',   fn:'yx',    fFn:'xrty',  gFn:'pctt'    },
+  {c:3, r:1, main:'1/x',  gold:'',      blue:'',     fn:'recip'                              },
+  {c:4, r:1, main:'LN',   gold:'eˣ',    blue:'%',    fn:'ln',    fFn:'expx',  gFn:'pct'     },
+  {c:5, r:1, main:'LOG',  gold:'10ˣ',   blue:'Δ%',   fn:'log',   fFn:'pow10', gFn:'dpct'    },
+  {c:6, r:1, main:'CHS',  gold:'INT',   blue:'FRAC', fn:'chs',   fFn:'intg',  gFn:'frac'    },
+  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',   fn:'d7'                                 },
+  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',   fn:'d8'                                 },
+  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',   fn:'d9'                                 },
+  {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',    fn:'div'                                },
 
-  {c:1, r:2, main:'π',    gold:'',      blue:'',      fn:'pi'                               },
-  {c:2, r:2, main:'x²',   gold:'',      blue:'∛',     fn:'sq',    gFn:'cbrt'               },
-  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',    fn:'sin',   fFn:'asin',  gFn:'toRec' },
-  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',    fn:'cos',   fFn:'acos',  gFn:'toPol' },
-  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',    fn:'tan',   fFn:'atan',  gFn:'toHrs' },
-  {c:6, r:2, main:'EEX',  gold:'',      blue:'',      fn:'eex'                              },
-  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',    fn:'d4'                               },
-  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',    fn:'d5'                               },
-  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',    fn:'d6'                               },
-  {c:10,r:2, main:'×',    cls:'opk',    msz:'op',     fn:'mul'                              },
+  // ROW 2 — constants & trig
+  {c:1, r:2, main:'π',    gold:'2π',    blue:'e',    fn:'pi',    fFn:'twopi', gFn:'euler'   },
+  {c:2, r:2, main:'x!',   gold:'',      blue:'',     fn:'fact'                               },
+  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',   fn:'sin',   fFn:'asin',  gFn:'toRec'  },
+  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',   fn:'cos',   fFn:'acos',  gFn:'toPol'  },
+  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',   fn:'tan',   fFn:'atan',  gFn:'toHrs'  },
+  {c:6, r:2, main:'EEX',  gold:'',      blue:'',     fn:'eex'                                },
+  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',   fn:'d4'                                 },
+  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',   fn:'d5'                                 },
+  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',   fn:'d6'                                 },
+  {c:10,r:2, main:'×',    cls:'opk',    msz:'op',    fn:'mul'                                },
 
-  {c:1, r:3, main:'%',    gold:'',      blue:'',      fn:'pct'                              },
-  {c:2, r:3, main:'MOD',  gold:'',      blue:'',      fn:'mod'                              },
-  {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',    fn:'rollDn',             gFn:'rollUp'},
-  {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',   fn:'swap',  fFn:'rnd',   gFn:'intg', msz:'sm'},
-  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',   fn:'bksp',  fFn:'clrAll',gFn:'clx'  },
+  // ROW 3 — stack ops
+  {c:1, r:3, main:'%',    gold:'',      blue:'',     fn:'pct'                                },
+  {c:2, r:3, main:'MOD',  gold:'ABS',   blue:'',     fn:'mod',   fFn:'abs'                  },
+  {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',   fn:'rollDn',             gFn:'rollUp' },
+  {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',  fn:'swap',  fFn:'rnd',   gFn:'intg',  msz:'sm'},
+  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',  fn:'bksp',  fFn:'clrAll',gFn:'clx'   },
   {c:6, r:3, rs:2, main:'ENTER', gold:'', blue:'LSTx', cls:'enter-k', msz:'ent', fn:'enter', gFn:'lastx'},
-  {c:7, r:3, main:'1',    cls:'numk',   msz:'num',    fn:'d1'                               },
-  {c:8, r:3, main:'2',    cls:'numk',   msz:'num',    fn:'d2'                               },
-  {c:9, r:3, main:'3',    cls:'numk',   msz:'num',    fn:'d3'                               },
-  {c:10,r:3, main:'−',    cls:'opk',    msz:'op',     fn:'sub'                              },
+  {c:7, r:3, main:'1',    cls:'numk',   msz:'num',   fn:'d1'                                },
+  {c:8, r:3, main:'2',    cls:'numk',   msz:'num',   fn:'d2'                                },
+  {c:9, r:3, main:'3',    cls:'numk',   msz:'num',   fn:'d3'                                },
+  {c:10,r:3, main:'−',    cls:'opk',    msz:'op',    fn:'sub'                               },
 
-  {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'         },
-  {c:2, r:4, main:'f',    gold:'',      blue:'',      cls:'fkey',  fn:'shiftF'              },
-  {c:3, r:4, main:'g',    gold:'',      blue:'',      cls:'gkey',  fn:'shiftG'              },
-  {c:4, r:4, main:'STO',  gold:'FRAC',  blue:'INT',   fn:'sto',   fFn:'frac',  gFn:'intg', msz:'sm'},
-  {c:5, r:4, main:'RCL',  gold:'',      blue:'MEM',   fn:'rcl',               gFn:'rcl',  msz:'sm'},
-  {c:7, r:4, main:'0',    cls:'numk',   msz:'num',    fn:'d0'                               },
-  {c:8, r:4, main:'·',    cls:'numk',   msz:'num',    fn:'dot'                              },
-  {c:9, r:4, main:'ABS',  gold:'FRAC',  blue:'RND',   fn:'abs',   fFn:'frac',  gFn:'rnd',  msz:'sm'},
-  {c:10,r:4, main:'+',    cls:'opk',    msz:'op',     fn:'add'                              },
+  // ROW 4 — control
+  {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'          },
+  {c:2, r:4, main:'f',    gold:'',      blue:'',     cls:'fkey',  fn:'shiftF'               },
+  {c:3, r:4, main:'g',    gold:'',      blue:'',     cls:'gkey',  fn:'shiftG'               },
+  {c:4, r:4, main:'STO',  gold:'',      blue:'',     fn:'sto',                 msz:'sm'     },
+  {c:5, r:4, main:'RCL',  gold:'',      blue:'',     fn:'rcl',                 msz:'sm'     },
+  // col 6 = ENTER span
+  {c:7, r:4, main:'0',    cls:'numk',   msz:'num',   fn:'d0'                                },
+  {c:8, r:4, main:'·',    cls:'numk',   msz:'num',   fn:'dot'                               },
+  {c:9, r:4, main:'000',  gold:'/000',  blue:'',     fn:'d000',  fFn:'div1000', msz:'sm'   },
+  {c:10,r:4, main:'+',    cls:'opk',    msz:'op',    fn:'add'                               },
 ];
 
 // ═══════════════════════════════════════════
@@ -460,6 +465,16 @@ const A={
   eex(){if(!isTyping){startEntry();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
   chs(){if(isTyping){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;}else stack[0]=-stack[0];},
   pi(){pushX(Math.PI); liftEnabled=true;},
+  twopi(){pushX(2*Math.PI); liftEnabled=true;},
+  euler(){pushX(Math.E); liftEnabled=true;},
+  d000(){
+    // append three zeros to current entry, or push 0 if stack is idle
+    if(!isTyping){ lift(); inputStr='0'; isTyping=true; liftEnabled=true; }
+    // only append if it won't overflow display (cap at 13 digits)
+    const digits=(inputStr.replace(/[^0-9]/g,'')).length;
+    if(digits+3<=13) inputStr+='000';
+  },
+  div1000(){ U(x=>x/1000); },
   // ENTER: lift stack, duplicate X, then DISABLE lift so next digit replaces X
   enter(){commit();const x=stack[0];lift();stack[0]=x; liftEnabled=false;},
   rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x; liftEnabled=true;},
