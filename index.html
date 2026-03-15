@@ -248,6 +248,7 @@ let inputStr='',isTyping=false;
 let shiftMode=0;
 let angleMode='DEG';
 let memory=0,memUsed=false,lastX=0;
+let liftEnabled=true;  // HP-style stack lift flag
 const LBLS=['X','Y','Z','T','5','6','7','8'];
 const REGS=['xreg','yreg','','','','','',''];
 
@@ -394,7 +395,19 @@ function commit(){
   const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;
   isTyping=false;inputStr='';
 }
-function dgt(d){if(!isTyping){lift();inputStr='';isTyping=true;}inputStr+=d;}
+function dgt(d){
+  if(!isTyping){
+    if(liftEnabled) lift();   // only lift if flag is set
+    inputStr=''; isTyping=true;
+    liftEnabled=true;         // re-enable for any subsequent new entry
+  }
+  inputStr+=d;
+}
+function startEntry(){
+  // shared setup for dot and eex when not already typing
+  if(liftEnabled) lift();
+  liftEnabled=true;
+}
 function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
 function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
 function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
@@ -407,25 +420,26 @@ const A={
   shiftG(){shiftMode=shiftMode===2?0:2;},
   d0(){dgt('0');},d1(){dgt('1');},d2(){dgt('2');},d3(){dgt('3');},d4(){dgt('4');},
   d5(){dgt('5');},d6(){dgt('6');},d7(){dgt('7');},d8(){dgt('8');},d9(){dgt('9');},
-  dot(){if(!isTyping){lift();inputStr='0';isTyping=true;}if(!inputStr.includes('.'))inputStr+='.';},
-  eex(){if(!isTyping){lift();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
+  dot(){if(!isTyping){startEntry();inputStr='0';isTyping=true;}if(!inputStr.includes('.'))inputStr+='.';},
+  eex(){if(!isTyping){startEntry();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
   chs(){if(isTyping){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;}else stack[0]=-stack[0];},
-  pi(){pushX(Math.PI);},
-  enter(){commit();const x=stack[0];lift();stack[0]=x;},
-  rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x;},
-  rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t;},
-  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]];},
-  clx(){commit();stack[0]=0;},
+  pi(){pushX(Math.PI); liftEnabled=true;},
+  // ENTER: lift stack, duplicate X, then DISABLE lift so next digit replaces X
+  enter(){commit();const x=stack[0];lift();stack[0]=x; liftEnabled=false;},
+  rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x; liftEnabled=true;},
+  rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t; liftEnabled=true;},
+  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]]; liftEnabled=true;},
+  clx(){commit();stack[0]=0; liftEnabled=false;},  // CLx: next digit replaces X
   bksp(){
     if(isTyping){inputStr=inputStr.slice(0,-1);if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}}
     else drop();
   },
-  clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;},
-  lastx(){pushX(lastX);},
+  clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;liftEnabled=true;},
+  lastx(){pushX(lastX); liftEnabled=true;},
   add(){B((y,x)=>y+x);},sub(){B((y,x)=>y-x);},mul(){B((y,x)=>y*x);},
   div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
   mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
-  pct(){commit();saveLast();stack[0]=stack[1]*stack[0]/100;},
+  pct(){commit();saveLast();stack[0]=stack[1]*stack[0]/100; liftEnabled=true;},
   dpct(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
   pctt(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
   sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
@@ -447,11 +461,11 @@ const A={
   toRec(){commit();saveLast();const th=toRad(stack[0]),r=stack[1];stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th);},
   toPol(){commit();saveLast();const y=stack[0],x=stack[1];stack[0]=fromRad(Math.atan2(y,x));stack[1]=Math.sqrt(x*x+y*y);},
   toHrs(){U(x=>{const h=Math.trunc(x);const rem=(x-h)*100;const m=Math.trunc(rem);const s=(rem-m)*100;return h+m/60+s/3600;});},
-  sto(){commit();memory=stack[0];memUsed=true;},
-  rcl(){commit();pushX(memory);},
+  sto(){commit();memory=stack[0];memUsed=true; liftEnabled=true;},
+  rcl(){commit();pushX(memory); liftEnabled=true;},
 };
-function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;}}
-function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r;}
+function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;} liftEnabled=true;}
+function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}
 
 function handleKey(k){
   clearErr();
