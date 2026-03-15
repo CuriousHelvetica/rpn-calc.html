@@ -330,19 +330,21 @@ html,body{
 </div>
 
 <script>
-// ── LAYOUT: always portrait-held, rotated 90deg, operators at physical bottom ──
-// No resize listeners, no orientation detection. One fixed layout forever.
+// ── LAYOUT: fixed single orientation, portrait-held phone, rotate(90deg) ──
+// shell CSS width  = innerHeight (tall CSS dimension fills portrait height)
+// shell CSS height = innerWidth  (narrow CSS dimension fills portrait width)
+// After rotate(90deg): operators at physical bottom, stack at physical top
 (function(){
   const shell = document.getElementById('shell');
-  const VW = window.screen.width  || window.innerWidth;
-  const VH = window.screen.height || window.innerHeight;
-  // Use the larger dimension as height, smaller as width (portrait assumption)
-  const W = Math.max(VW, VH);  // shell CSS width  = tall dimension
-  const H = Math.min(VW, VH);  // shell CSS height = narrow dimension
-  shell.style.width  = W + 'px';
-  shell.style.height = H + 'px';
-  shell.style.left   = ((VW - W) / 2) + 'px';
-  shell.style.top    = ((VH - H) / 2) + 'px';
+  const VW = window.innerWidth;
+  const VH = window.innerHeight;
+  // Always treat as portrait: tall = VH, narrow = VW
+  const W = VH;   // shell CSS width
+  const H = VW;   // shell CSS height
+  shell.style.width     = W + 'px';
+  shell.style.height    = H + 'px';
+  shell.style.left      = Math.round((VW - W) / 2) + 'px';
+  shell.style.top       = Math.round((VH - H) / 2) + 'px';
   shell.style.transform = 'rotate(90deg)';
 }());
 
