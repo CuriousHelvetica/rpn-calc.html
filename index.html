@@ -117,22 +117,11 @@ html,body{
 }
 
 /*
-  Shell always landscape, rotated 90deg clockwise in a portrait viewport.
-  Pure CSS — no JS timing issues.
-  After rotate(90deg):
-    shell LEFT  → physical TOP   (notch side)   → padding-left clears notch
-    shell RIGHT → physical BOTTOM (home bar)    → padding-right clears home indicator
-  width: 100vh fills the portrait height; height: 100vw fills the portrait width.
-  left/top centre the pre-rotation element so rotation lands flush with screen edges.
+  Shell sized and rotated entirely by JS layoutShell().
+  No CSS sizing here — iOS Safari vh/vw units are unreliable.
 */
 #shell{
   position:fixed;
-  width:100vh;
-  height:100vw;
-  left:calc(50vw - 50vh);
-  top:calc(50vh - 50vw);
-  transform:rotate(90deg);
-  transform-origin:50% 50%;
   display:flex;flex-direction:row;align-items:stretch;
   background:var(--shell-bg);
   gap:9px;
@@ -345,8 +334,32 @@ html,body{
 </div>
 
 <script>
-// ── LAYOUT: pure CSS handles sizing, no JS needed ──
-// rotate(90deg) is set in CSS; shell dimensions via vw/vh units
+// ── LAYOUT ──────────────────────────────────────────
+// Always portrait-held phone. Shell is landscape-sized
+// and rotated 90deg so operators sit at physical bottom.
+// Uses window.innerWidth/Height (CSS pixels, not physical).
+// Runs on load AND after load to handle iOS viewport settling.
+function layoutShell(){
+  const shell = document.getElementById('shell');
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Shell CSS dimensions before rotation:
+  //   width  = vh (fills portrait height after 90deg rotation)
+  //   height = vw (fills portrait width after 90deg rotation)
+  const W = vh;
+  const H = vw;
+  shell.style.width     = W + 'px';
+  shell.style.height    = H + 'px';
+  // Centre so rotation origin lands at viewport centre
+  shell.style.left      = ((vw - W) / 2) + 'px';
+  shell.style.top       = ((vh - H) / 2) + 'px';
+  shell.style.transform = 'rotate(90deg)';
+  shell.style.transformOrigin = '50% 50%';
+}
+// Run immediately, again after DOM ready, and again after full load
+layoutShell();
+document.addEventListener('DOMContentLoaded', layoutShell);
+window.addEventListener('load', layoutShell);
 
 // ═══════════════════════════════════════════
 // STATE
