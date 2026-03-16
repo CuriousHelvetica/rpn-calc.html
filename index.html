@@ -199,6 +199,47 @@ html,body{
 .clall-k .kf{background:#1e1010;} .clall-k .ml{color:#ff7070;}
 .fkey.slit{box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9);}
 .gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
+
+/* ── LIGHT THEME OVERRIDES ── */
+.light body{ background:#c8c8c8; }
+.light #shell{ background:#bebebe; }
+.light .disp{ background:#e8eedc; border-color:#a8b898; box-shadow:inset 0 2px 16px rgba(0,0,0,.1); }
+.light .disp-brand{ color:#445533; }
+.light .disp-aux{ border-bottom-color:#b8c8a8; }
+.light .aux-lbl.lbl-m{ color:#667755; }
+.light .aux-lbl.lbl-last{ color:#889977; }
+.light .aux-val.val-m{ color:#334422; }
+.light .aux-val.val-last{ color:#667755; }
+.light .slbl{ color:#778866; }
+.light .sval{ color:#223311; }
+.light .srow.xreg .slbl{ color:#000; }
+.light .srow.xreg .sval{ color:#000; }
+.light .srow.yreg .slbl{ color:#112200; }
+.light .srow.yreg .sval{ color:#112200; }
+.light .disp-footer{ border-top-color:#b8c8a8; }
+.light .ang-btn{ color:#445533; border-color:#778866; }
+.light .above{ color:#aa6600; }
+.light .kf{ background:#e0e0e0; }
+.light .kc{ background:#cccccc; border-top-color:#b8b8b8; }
+.light .ml{ color:#111; }
+.light .cl-lbl{ color:#0066bb; }
+.light .fkey .kf{ background:#ddd8c0; }
+.light .fkey .ml{ color:#aa6600; }
+.light .gkey .kf{ background:#c8d8e8; }
+.light .gkey .ml{ color:#0066bb; }
+.light .numk .kf{ background:#e8e8e8; }
+.light .opk  .kf{ background:#dcdcdc; }
+.light .clall-k .kf{ background:#f0e0e0; }
+.light .clall-k .ml{ color:#cc2222; }
+
+/* Theme toggle button */
+.theme-btn{
+  background:transparent;border:1px solid #333;border-radius:3px;
+  width:22px;height:22px;font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.light .theme-btn{ border-color:#778866; }
 </style>
 </head>
 <body>
@@ -222,7 +263,10 @@ html,body{
         <div class="ind ind-g" id="annG">g</div>
         <div class="ind ind-m" id="annM">M</div>
       </div>
-      <span class="ang-btn" id="angBtn" onclick="toggleAngle()">DEG</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="ang-btn" id="angBtn" onclick="toggleAngle()">DEG</span>
+        <span class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀</span>
+      </div>
     </div>
     <div class="err-line" id="errLine"></div>
   </div>
@@ -452,6 +496,12 @@ function startEntry(){
 function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
 function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
 function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
+let isLight=false;
+function toggleTheme(){
+  isLight=!isLight;
+  document.body.classList.toggle('light',isLight);
+  document.getElementById('themeBtn').textContent=isLight?'☾':'☀';
+}
 
 // ═══════════════════════════════════════════
 // ACTIONS
