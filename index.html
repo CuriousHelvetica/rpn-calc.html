@@ -594,17 +594,31 @@ function initAudio(){
 
 function playSoftTap(){
   if(!isSoundOn||!audioCtx)return;
-  const ac=audioCtx;
-  const gain=ac.createGain();
-  gain.connect(ac.destination);
-  const buf=ac.createBuffer(1,Math.floor(ac.sampleRate*0.04),ac.sampleRate);
+  const a=audioCtx;
+  const t=a.currentTime;
+
+  // High-freq clack layer
+  const len=Math.floor(a.sampleRate*0.018);
+  const buf=a.createBuffer(1,len,a.sampleRate);
   const d=buf.getChannelData(0);
-  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,6);
-  const src=ac.createBufferSource();src.buffer=buf;
-  const f=ac.createBiquadFilter();f.type='bandpass';f.frequency.value=1200;f.Q.value=0.8;
-  src.connect(f);f.connect(gain);
-  gain.gain.setValueAtTime(0.22,ac.currentTime);
-  src.start();
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,10);
+  const src=a.createBufferSource();src.buffer=buf;
+  const mid=a.createBiquadFilter();mid.type='peaking';mid.frequency.value=1800;mid.gain.value=12;
+  const hi=a.createBiquadFilter();hi.type='highpass';hi.frequency.value=5000;
+  const hg=a.createGain();hg.gain.setValueAtTime(0.13,t);
+  src.connect(mid);mid.connect(hi);hi.connect(hg);hg.connect(a.destination);
+  src.start(t);
+
+  // Deep sub thump (D2: 60Hz→20Hz, 80ms)
+  const osc=a.createOscillator();
+  osc.type='sine';
+  osc.frequency.setValueAtTime(60,t);
+  osc.frequency.exponentialRampToValueAtTime(20,t+0.08);
+  const sg=a.createGain();
+  sg.gain.setValueAtTime(0.17,t);
+  sg.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+  osc.connect(sg);sg.connect(a.destination);
+  osc.start(t);osc.stop(t+0.08);
 }
 
 function toggleSound(){
