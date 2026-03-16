@@ -343,22 +343,22 @@ function layoutShell(){
   const shell = document.getElementById('shell');
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  // Always make W the LARGER dimension and H the SMALLER.
-  // This guarantees a landscape shell even if iOS reports
-  // innerHeight < innerWidth at the moment of execution.
+  // Always use larger dimension as W so shell is landscape-shaped
   const W = Math.max(vw, vh);
   const H = Math.min(vw, vh);
-  shell.style.width     = W + 'px';
-  shell.style.height    = H + 'px';
-  shell.style.left      = ((vw - W) / 2) + 'px';
-  shell.style.top       = ((vh - H) / 2) + 'px';
-  shell.style.transform = 'rotate(90deg)';
+  shell.style.width           = W + 'px';
+  shell.style.height          = H + 'px';
+  shell.style.left            = ((vw - W) / 2) + 'px';
+  shell.style.top             = ((vh - H) / 2) + 'px';
+  shell.style.transform       = 'rotate(90deg)';
   shell.style.transformOrigin = '50% 50%';
 }
-// Run immediately, again after DOM ready, and again after full load
+// iOS PWA settles viewport dimensions asynchronously.
+// Run immediately, then at 100ms and 400ms to catch late settling.
 layoutShell();
-document.addEventListener('DOMContentLoaded', layoutShell);
-window.addEventListener('load', layoutShell);
+setTimeout(layoutShell, 100);
+setTimeout(layoutShell, 400);
+window.addEventListener('resize', layoutShell);
 
 // ═══════════════════════════════════════════
 // STATE
