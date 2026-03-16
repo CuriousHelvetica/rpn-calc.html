@@ -341,24 +341,31 @@ html,body{
 // Runs on load AND after load to handle iOS viewport settling.
 function layoutShell(){
   const shell = document.getElementById('shell');
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  // Always use larger dimension as W so shell is landscape-shaped
-  const W = Math.max(vw, vh);
-  const H = Math.min(vw, vh);
-  shell.style.width           = W + 'px';
-  shell.style.height          = H + 'px';
-  shell.style.left            = ((vw - W) / 2) + 'px';
-  shell.style.top             = ((vh - H) / 2) + 'px';
-  shell.style.transform       = 'rotate(90deg)';
-  shell.style.transformOrigin = '50% 50%';
+  const VW = window.innerWidth;
+  const VH = window.innerHeight;
+
+  if(VH >= VW){
+    // Portrait — rotate 90deg so layout appears landscape
+    const W = VH;
+    const H = VW;
+    shell.style.width     = W + 'px';
+    shell.style.height    = H + 'px';
+    shell.style.left      = (VW/2 - W/2) + 'px';
+    shell.style.top       = (VH/2 - H/2) + 'px';
+    shell.style.transform = 'rotate(90deg)';
+    shell.style.transformOrigin = '50% 50%';
+  } else {
+    // Landscape — fill directly, no rotation
+    shell.style.width     = VW + 'px';
+    shell.style.height    = VH + 'px';
+    shell.style.left      = '0px';
+    shell.style.top       = '0px';
+    shell.style.transform = 'none';
+  }
 }
-// iOS PWA settles viewport dimensions asynchronously.
-// Run immediately, then at 100ms and 400ms to catch late settling.
+window.addEventListener('resize',            () => setTimeout(layoutShell, 50));
+window.addEventListener('orientationchange', () => setTimeout(layoutShell, 150));
 layoutShell();
-setTimeout(layoutShell, 100);
-setTimeout(layoutShell, 400);
-window.addEventListener('resize', layoutShell);
 
 // ═══════════════════════════════════════════
 // STATE
