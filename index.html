@@ -337,40 +337,28 @@ html,body{
 // ── LAYOUT ──────────────────────────────────────────
 // Always portrait-held phone. Shell is landscape-sized
 // and rotated 90deg so operators sit at physical bottom.
-//
-// Uses screen.width/height (device CSS pixels) instead of
-// window.innerWidth/Height — the latter is unreliable on iOS
-// Safari because it shrinks/grows with the dynamic URL bar,
-// causing the shell to be sized wrong on load.
-// screen.width/height are constant and match the physical
-// screen in CSS pixels (e.g. 390×844 on iPhone 13 Pro).
+// Uses window.innerWidth/Height (CSS pixels, not physical).
+// Runs on load AND after load to handle iOS viewport settling.
 function layoutShell(){
   const shell = document.getElementById('shell');
-  if(!shell) return;
-  // Portrait dimensions of the device (CSS pixels, not physical)
-  const pw = Math.min(screen.width, screen.height);  // e.g. 390
-  const ph = Math.max(screen.width, screen.height);  // e.g. 844
-  // Shell is landscape-sized before the 90deg rotation:
-  //   shell width  = portrait height  (becomes viewport height after rotation)
-  //   shell height = portrait width   (becomes viewport width  after rotation)
-  const W = ph;
-  const H = pw;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Always make W the LARGER dimension and H the SMALLER.
+  // This guarantees a landscape shell even if iOS reports
+  // innerHeight < innerWidth at the moment of execution.
+  const W = Math.max(vw, vh);
+  const H = Math.min(vw, vh);
   shell.style.width     = W + 'px';
   shell.style.height    = H + 'px';
-  // Position so the shell's centre lands at the screen centre,
-  // making rotation origin = viewport centre.
-  shell.style.left      = ((pw - W) / 2) + 'px';
-  shell.style.top       = ((ph - H) / 2) + 'px';
+  shell.style.left      = ((vw - W) / 2) + 'px';
+  shell.style.top       = ((vh - H) / 2) + 'px';
   shell.style.transform = 'rotate(90deg)';
   shell.style.transformOrigin = '50% 50%';
 }
+// Run immediately, again after DOM ready, and again after full load
 layoutShell();
 document.addEventListener('DOMContentLoaded', layoutShell);
 window.addEventListener('load', layoutShell);
-window.addEventListener('resize', layoutShell);
-// Belt-and-suspenders: re-run after iOS has fully settled
-setTimeout(layoutShell, 300);
-setTimeout(layoutShell, 800);
 
 // ═══════════════════════════════════════════
 // STATE
