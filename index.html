@@ -356,7 +356,7 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
         <span class="ang-btn" id="angBtn" onclick="toggleAngle()">DEG</span>
-        <span class="sound-btn" id="soundBtn" onclick="toggleSound()">♪</span>
+        <span class="sound-btn on" id="soundBtn" onclick="toggleSound()">♪</span>
         <span class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀</span>
       </div>
     </div>
@@ -601,7 +601,7 @@ function toggleTheme(){
 // ═══════════════════════════════════════════
 // AUDIO — soft tap (Web Audio, no files)
 // ═══════════════════════════════════════════
-let isSoundOn=false;
+let isSoundOn=true;  // keypad sound on by default
 let audioCtx=null;
 let audioReady=false;
 
@@ -614,6 +614,15 @@ function initAudio(){
   src.buffer=buf;src.connect(audioCtx.destination);src.start();
   audioReady=true;
 }
+
+// iOS only lets audio start inside a user gesture. Sound is on by default, so
+// create/resume the audio context on the first touches instead of on the toggle.
+function unlockAudio(){
+  if(!isSoundOn)return;
+  initAudio();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+}
+['pointerdown','touchend','click'].forEach(ev=>document.addEventListener(ev,unlockAudio,true));
 
 function playSoftTap(){
   if(!isSoundOn||!audioCtx)return;
