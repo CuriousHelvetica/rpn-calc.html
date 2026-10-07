@@ -44,8 +44,11 @@
   ║                                                                      ║
   ║  6. STACK LOGIC — HP RPN liftEnabled flag                           ║
   ║     liftEnabled=true:  next digit lifts stack before entry           ║
-  ║     liftEnabled=false: next digit REPLACES X (set by ENTER, CLx)    ║
+  ║     liftEnabled=false: next digit REPLACES X (set by ENTER, CLx, ←) ║
   ║     Every binary/unary op sets liftEnabled=true after result.        ║
+  ║     π, e, RCL, LSTx also overwrite X when lift is disabled.         ║
+  ║     ← after entry is terminated acts as CLx. CHS after EEX changes  ║
+  ║     the exponent sign. %, Δ%, %T keep Y. →R/→P: r,x in X; θ,y in Y. ║
   ║     This replicates authentic HP 15C stack behaviour.               ║
   ║                                                                      ║
   ║  7. KEY LAYOUT — 10 cols × 4 rows                                   ║
@@ -55,6 +58,10 @@
   ║     Col 10: operators (÷ × − +)                                     ║
   ║     Gold labels = f-shift, printed on body ABOVE button             ║
   ║     Blue labels = g-shift, printed on chamfer at bottom of button   ║
+  ║                                                                      ║
+  ║  8. OFFLINE                                                          ║
+  ║     sw.js caches every file the app needs. When adding or renaming  ║
+  ║     a file, add it to ASSETS in sw.js and bump CACHE.               ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
 <html lang="en">
@@ -64,15 +71,28 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Helvetica RPN">
+<meta name="theme-color" content="#161616">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>Helvetica RPN</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono:wght@400&family=Orbitron:wght@700&display=swap');
+/* Fonts are bundled locally (SIL OFL, see fonts/) so the app works offline */
+@font-face{
+  font-family:'Orbitron';font-style:normal;font-weight:700;font-display:swap;
+  src:url(fonts/orbitron-700-latin.woff2) format('woff2');
+}
+@font-face{
+  font-family:'Share Tech Mono';font-style:normal;font-weight:400;font-display:swap;
+  src:url(fonts/share-tech-mono-400-latin.woff2) format('woff2');
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 
 html,body{
   width:100%;height:100%;
   background:#000;
-  /* NO overflow:hidden here — it clips position:fixed children in WebKit */
+  /* NOTE: header insight 5 recommends overflow:hidden on body only, but it is
+     currently set on both html and body. Left unchanged (layout works on device). */
   overflow:hidden;
   touch-action:none;
   -webkit-user-select:none;user-select:none;
@@ -259,7 +279,7 @@ html,body{
 .gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
 
 /* ── LIGHT THEME OVERRIDES ── */
-.light body{ background:#c8c8c8; }
+body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
 .light #shell{ background:#bebebe; }
 .light .disp{ background:#e8eedc; border-color:#a8b898; box-shadow:inset 0 2px 16px rgba(0,0,0,.1); }
 .light .disp-brand{ color:#445533; }
@@ -537,7 +557,8 @@ function render(){
   });
 }
 
-function showErr(m){const e=document.getElementById('errLine');e.textContent=m;setTimeout(()=>e.textContent='',2500);}
+let errTimer=null;
+function showErr(m){const e=document.getElementById('errLine');e.textContent=m;clearTimeout(errTimer);errTimer=setTimeout(()=>e.textContent='',2500);}
 function clearErr(){document.getElementById('errLine').textContent='';}
 
 // ═══════════════════════════════════════════
@@ -545,7 +566,9 @@ function clearErr(){document.getElementById('errLine').textContent='';}
 // ═══════════════════════════════════════════
 function lift(){for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];}
 function drop(){for(let i=0;i<SZ-1;i++)stack[i]=stack[i+1];}
-function pushX(v){lift();stack[0]=v;}
+// Recall a value into X (π, e, RCL, LSTx). Like keyed-in numbers, it
+// overwrites X when stack lift is disabled (after ENTER, CLx, ←).
+function recallX(v){commit();if(liftEnabled)lift();stack[0]=v;liftEnabled=true;}
 function saveLast(){lastX=stack[0];}
 function commit(){
   if(!isTyping)return;
@@ -635,15 +658,23 @@ const A={
   shiftG(){shiftMode=shiftMode===2?0:2;},
   d0(){dgt('0');},d1(){dgt('1');},d2(){dgt('2');},d3(){dgt('3');},d4(){dgt('4');},
   d5(){dgt('5');},d6(){dgt('6');},d7(){dgt('7');},d8(){dgt('8');},d9(){dgt('9');},
-  dot(){if(!isTyping){startEntry();inputStr='0';isTyping=true;}if(!inputStr.includes('.'))inputStr+='.';},
+  dot(){if(!isTyping){startEntry();inputStr='0';isTyping=true;}if(!inputStr.includes('.')&&!inputStr.includes('e'))inputStr+='.';},
   eex(){if(!isTyping){startEntry();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
-  chs(){if(isTyping){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;}else stack[0]=-stack[0];},
-  pi(){pushX(Math.PI); liftEnabled=true;},
-  twopi(){pushX(2*Math.PI); liftEnabled=true;},
-  euler(){pushX(Math.E); liftEnabled=true;},
+  chs(){
+    if(!isTyping){stack[0]=-stack[0];return;}
+    const e=inputStr.indexOf('e');
+    if(e<0){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;return;}
+    // After EEX, CHS changes the sign of the exponent (HP-15C)
+    const mant=inputStr.slice(0,e+1),exp=inputStr.slice(e+1);
+    inputStr=mant+(exp.startsWith('-')?exp.slice(1):'-'+exp);
+  },
+  pi(){recallX(Math.PI);},
+  twopi(){recallX(2*Math.PI);},
+  euler(){recallX(Math.E);},
   d000(){
-    // append three zeros to current entry, or push 0 if stack is idle
-    if(!isTyping){ lift(); inputStr='0'; isTyping=true; liftEnabled=true; }
+    // start a new entry with 0, or append three zeros to the current one
+    if(!isTyping){dgt('0');return;}
+    if(inputStr.includes('e')||/^-?0$/.test(inputStr))return;  // not in exponent, no leading zeros
     // only append if it won't overflow display (cap at 13 digits)
     const digits=(inputStr.replace(/[^0-9]/g,'')).length;
     if(digits+3<=13) inputStr+='000';
@@ -655,20 +686,26 @@ const A={
   rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t; liftEnabled=true;},
   swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]]; liftEnabled=true;},
   clx(){commit();stack[0]=0; liftEnabled=false;},  // CLx: next digit replaces X
+  // ←: deletes the last digit while typing; once entry is terminated it acts
+  // as CLx (HP-15C). Either way, a cleared X is replaced by the next number.
   bksp(){
-    if(isTyping){inputStr=inputStr.slice(0,-1);if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;}}
-    else drop();
+    if(isTyping){
+      inputStr=inputStr.slice(0,-1);
+      if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;liftEnabled=false;}
+    }
+    else{stack[0]=0;liftEnabled=false;}
   },
   clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;liftEnabled=true;},
-  lastx(){pushX(lastX); liftEnabled=true;},
+  lastx(){recallX(lastX);},
   add(){B((y,x)=>y+x);},sub(){B((y,x)=>y-x);},mul(){B((y,x)=>y*x);},
   div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
   mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
-  pct(){commit();saveLast();stack[0]=stack[1]*stack[0]/100; liftEnabled=true;},
-  dpct(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
-  pctt(){B((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
+  // Percentage functions leave Y (the base value) in place, as on HP calculators
+  pct(){P((y,x)=>y*x/100);},
+  dpct(){P((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
+  pctt(){P((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
   sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
-  sq(){U(x=>x*x);},cbrt(){U(x=>Math.cbrt(x));},
+  sq(){U(x=>x*x);},
   expx(){U(x=>Math.exp(x));},
   ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);});},
   pow10(){U(x=>Math.pow(10,x));},
@@ -683,14 +720,17 @@ const A={
   asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));});},
   acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));});},
   atan(){U(x=>fromRad(Math.atan(x)));},
-  toRec(){commit();saveLast();const th=toRad(stack[0]),r=stack[1];stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th);},
-  toPol(){commit();saveLast();const y=stack[0],x=stack[1];stack[0]=fromRad(Math.atan2(y,x));stack[1]=Math.sqrt(x*x+y*y);},
+  // HP-15C register order: →R takes r in X, θ in Y and returns x in X, y in Y;
+  // →P is the inverse (x in X, y in Y → r in X, θ in Y).
+  toRec(){commit();saveLast();const r=stack[0],th=toRad(stack[1]);stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th); liftEnabled=true;},
+  toPol(){commit();saveLast();const x=stack[0],y=stack[1];stack[0]=Math.hypot(x,y);stack[1]=fromRad(Math.atan2(y,x)); liftEnabled=true;},
   toHrs(){U(x=>{const h=Math.trunc(x);const rem=(x-h)*100;const m=Math.trunc(rem);const s=(rem-m)*100;return h+m/60+s/3600;});},
   sto(){commit();memory=stack[0];memUsed=true; liftEnabled=true;},
-  rcl(){commit();pushX(memory); liftEnabled=true;},
+  rcl(){recallX(memory);},
 };
 function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;} liftEnabled=true;}
 function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}
+function P(fn){commit();saveLast();const r=fn(stack[1],stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}  // like B, but keeps Y
 
 function handleKey(k){
   clearErr();
@@ -717,6 +757,11 @@ document.addEventListener('keydown',e=>{
 
 buildKeypad();
 render();
+
+// Offline support: cache the app with a service worker (needs https, e.g. GitHub Pages)
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
