@@ -613,6 +613,11 @@ function initAudio(){
   const src=audioCtx.createBufferSource();
   src.buffer=buf;src.connect(audioCtx.destination);src.start();
   audioReady=true;
+  audioCtx.addEventListener('statechange',()=>{
+    if(audioCtx.state!=='running')return;
+    if(pendingTap&&performance.now()-pendingTap<1000)playTapNow();
+    pendingTap=0;
+  });
 }
 
 // iOS only lets audio start inside a user gesture. Sound is on by default, so
@@ -622,10 +627,19 @@ function unlockAudio(){
   initAudio();
   if(audioCtx.state==='suspended')audioCtx.resume();
 }
+
+// On iOS the first tap's touchdown can come before audio is allowed to start.
+// Remember that tap and play it as soon as audio starts running.
+let pendingTap=0;
 ['pointerdown','touchend','click'].forEach(ev=>document.addEventListener(ev,unlockAudio,true));
 
 function playSoftTap(){
   if(!isSoundOn||!audioCtx)return;
+  if(audioCtx.state!=='running'){pendingTap=performance.now();return;}
+  playTapNow();
+}
+
+function playTapNow(){
   const a=audioCtx;
   const t=a.currentTime;
 
