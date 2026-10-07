@@ -607,6 +607,10 @@ let audioReady=false;
 
 function initAudio(){
   if(audioCtx)return;
+  // Declare the clicks as "playback" audio so the iPhone silent switch doesn't
+  // mute them — only the ♪ button controls sound (iOS 17+; must be set before
+  // the AudioContext is created). Side effect: it pauses other apps' music.
+  if('audioSession' in navigator){try{navigator.audioSession.type='playback';}catch(e){}}
   audioCtx=new(window.AudioContext||window.webkitAudioContext)();
   // Play a silent buffer to unlock iOS audio on first gesture
   const buf=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
