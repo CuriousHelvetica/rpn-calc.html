@@ -7,7 +7,7 @@ Ideas for future projects, kept here so they aren't lost between sessions.
 - **RPN trainer** — a game inside the calculator (TRAIN button). Key in a
   formula the RPN way. Two modes: *Countdown* (solve as many as you can in
   60 s) and *Keystroke par* (10 formulas, no clock, fewest keystrokes).
-  Five levels of difficulty.
+  15 levels, from `a + b` up to percent, EEX, memory and stack tricks.
 
 ## Building on the calculator
 
