@@ -69,8 +69,8 @@
   ║     UPDATED.                                                         ║
   ║                                                                      ║
   ║  9. TRAINER                                                          ║
-  ║     TRAIN (top of display) opens a game that shows a formula to key  ║
-  ║     in. It drives the real keypad: handleKey and the keyboard        ║
+  ║     PRACTICE (top of display) opens a game that shows a formula to   ║
+  ║     key in. It drives the real keypad: handleKey and the keyboard    ║
   ║     handler call trainerAfterKey, commit() calls trainerOnEntry.     ║
   ║     The calculator state is saved on entry and restored on exit.     ║
   ║     Menus are .tr-ov overlays inside #shell (absolute, so they       ║
@@ -451,7 +451,7 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
   <div class="disp" id="disp">
     <div class="disp-top">
       <div class="disp-brand">Helvetica RPN</div>
-      <span class="train-btn" id="trainBtn" onclick="trainerButton()">TRAIN</span>
+      <span class="train-btn" id="trainBtn" onclick="trainerButton()">PRACTICE</span>
     </div>
     <div class="disp-aux">
       <div class="aux-row">
@@ -1377,7 +1377,7 @@ function trainerClose(){
   document.getElementById('trMenu').classList.remove('show');
   document.getElementById('trResult').classList.remove('show');
   document.getElementById('disp').classList.remove('training');
-  document.getElementById('trainBtn').textContent='TRAIN';
+  document.getElementById('trainBtn').textContent='PRACTICE';
   if(tr.saved)({stack,inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled}=tr.saved);
   tr.saved=null;tr.on=false;tr.playing=false;
   render();
