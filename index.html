@@ -62,6 +62,14 @@
   ║  8. OFFLINE                                                          ║
   ║     sw.js caches every file the app needs. When adding or renaming  ║
   ║     a file, add it to ASSETS in sw.js and bump CACHE.               ║
+  ║                                                                      ║
+  ║  9. TRAINER                                                          ║
+  ║     TRAIN (top of display) opens a game that shows a formula to key  ║
+  ║     in. It drives the real keypad: handleKey and the keyboard        ║
+  ║     handler call trainerAfterKey, commit() calls trainerOnEntry.     ║
+  ║     The calculator state is saved on entry and restored on exit.     ║
+  ║     Menus are .tr-ov overlays inside #shell (absolute, so they       ║
+  ║     rotate with it); #shell itself is untouched.                     ║
   ╚══════════════════════════════════════════════════════════════════════╝
 -->
 <html lang="en">
@@ -331,12 +339,108 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
 .sound-btn.on{ opacity:1; color:#fff; border-color:#888; }
 .light .sound-btn{ border-color:#778866; color:#445533; }
 .light .sound-btn.on{ border-color:#445533; }
+
+/* ── TRAINER ── */
+.disp-top{display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.train-btn,.tr-skip{
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px;color:#88cc88;border:1px solid #2a4a2a;border-radius:3px;
+  padding:2px 6px;cursor:pointer;letter-spacing:1px;
+  -webkit-tap-highlight-color:transparent;
+}
+.train-btn:active,.tr-skip:active{color:#fff;border-color:#888;}
+.tr-panel{
+  display:none;flex:1.4;flex-direction:column;gap:3px;min-height:0;
+  border-bottom:1px solid #1a1a1a;margin-bottom:4px;padding:6px 0 4px;
+}
+.disp.training .disp-aux{display:none;}
+.disp.training .tr-panel{display:flex;}
+.tr-top,.tr-bot{
+  display:flex;justify-content:space-between;align-items:center;gap:6px;flex-shrink:0;
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:#777;
+}
+.tr-meter.hot{color:#ff5050;}
+.tr-formula{
+  flex:1;display:flex;align-items:center;min-height:0;
+  font-family:'Share Tech Mono',monospace;font-size:16px;font-weight:bold;
+  color:#b8f0a0;line-height:1.25;word-break:break-word;
+}
+.tr-status{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tr-status.ok{color:#66dd66;}
+.tr-status.bad{color:#ff5050;}
+.disp{transition:border-color .15s;}
+.disp.flash-ok{border-color:#44cc44;}
+.disp.flash-bad{border-color:#ff5050;}
+
+/* Trainer menus: overlays inside #shell, padded like it */
+.tr-ov{
+  position:absolute;top:0;left:0;right:0;bottom:0;z-index:5;
+  display:none;gap:12px;background:#161616;
+  padding:8px 40px 8px 62px;
+  font-family:'Share Tech Mono',monospace;color:#bbb;
+}
+.tr-ov.show{display:flex;}
+.trm-side{width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:7px;}
+.trm-title{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:2px;color:#ddd;padding:2px 0;}
+.trm-mode,.trm-lv,.tr-btn{
+  border:1px solid #2e2e2e;border-radius:6px;background:#1e1e1e;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.trm-mode:active,.trm-lv:active,.tr-btn:active{background:#2a2a2a;}
+.trm-mode{padding:6px 9px;}
+.trm-mode b,.trm-lv b{display:block;font-size:12px;color:#ddd;letter-spacing:1px;}
+.trm-mode span,.trm-lv span{display:block;font-size:10px;color:#777;}
+.trm-mode.sel{border-color:#ffcc00;}
+.trm-mode.sel b{color:#ffcc00;}
+.trm-note{flex:1;font-size:10px;color:#666;line-height:1.4;min-height:0;overflow:hidden;}
+.tr-btn{padding:7px 12px;text-align:center;font-size:11px;letter-spacing:1px;color:#ddd;}
+.trm-levels{flex:1;display:flex;flex-direction:column;gap:5px;min-width:0;}
+.trm-lv{flex:1;display:flex;align-items:center;gap:12px;padding:0 12px;min-height:0;}
+.trm-lv .n{font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:#ffcc00;width:20px;flex-shrink:0;}
+.trm-lv .t{flex:1;min-width:0;}
+.trm-lv .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.trm-lv .best{font-size:10px;color:#999;text-align:right;white-space:nowrap;}
+.stars{color:#ffcc00;letter-spacing:1px;}
+.trr-box{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;text-align:center;}
+.trr-head{font-size:11px;letter-spacing:2px;color:#888;}
+.trr-score{font-family:'Orbitron',monospace;font-size:24px;font-weight:700;color:#eee;letter-spacing:1px;}
+.trr-score .stars{font-size:20px;margin-left:10px;}
+.trr-line{font-size:11px;color:#999;letter-spacing:1px;}
+.trr-line.new{color:#66dd66;}
+.trr-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:420px;}
+.trr-chips span{font-size:10px;border:1px solid #333;border-radius:3px;padding:2px 5px;color:#aaa;}
+.trr-chips .under{color:#66dd66;border-color:#2a5a2a;}
+.trr-chips .over{color:#ff9050;border-color:#5a3a2a;}
+.trr-btns{display:flex;gap:8px;margin-top:4px;}
+
+.light .train-btn,.light .tr-skip{color:#445533;border-color:#778866;}
+.light .tr-panel{border-bottom-color:#b8c8a8;}
+.light .tr-top,.light .tr-bot{color:#667755;}
+.light .tr-formula{color:#223311;}
+.light .tr-status.ok{color:#228822;}
+.light .tr-status.bad{color:#cc2222;}
+.light .tr-meter.hot{color:#cc2222;}
+.light .tr-ov{background:#bebebe;color:#333;}
+.light .trm-title,.light .trr-score{color:#222;}
+.light .trm-mode,.light .trm-lv,.light .tr-btn{background:#e0e0e0;border-color:#a8a8a8;}
+.light .trm-mode:active,.light .trm-lv:active,.light .tr-btn:active{background:#d0d0d0;}
+.light .trm-mode b,.light .trm-lv b,.light .tr-btn{color:#111;}
+.light .trm-mode span,.light .trm-lv span,.light .trm-note,.light .trr-head,.light .trr-line,.light .trm-lv .best{color:#555;}
+.light .trm-mode.sel{border-color:#aa6600;}
+.light .trm-mode.sel b,.light .trm-lv .n,.light .stars{color:#aa6600;}
+.light .trr-line.new{color:#228822;}
+.light .trr-chips span{border-color:#a8a8a8;color:#444;}
+.light .trr-chips .under{color:#228822;}
+.light .trr-chips .over{color:#bb5500;}
 </style>
 </head>
 <body>
 <div id="shell">
-  <div class="disp">
-    <div class="disp-brand">Helvetica RPN</div>
+  <div class="disp" id="disp">
+    <div class="disp-top">
+      <div class="disp-brand">Helvetica RPN</div>
+      <span class="train-btn" id="trainBtn" onclick="trainerButton()">TRAIN</span>
+    </div>
     <div class="disp-aux">
       <div class="aux-row">
         <span class="aux-lbl lbl-m">MEM</span>
@@ -346,6 +450,11 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
         <span class="aux-lbl lbl-last">LST</span>
         <span class="aux-val val-last" id="auxLast">—</span>
       </div>
+    </div>
+    <div class="tr-panel">
+      <div class="tr-top"><span id="trProg"></span><span class="tr-meter" id="trMeter"></span></div>
+      <div class="tr-formula" id="trFormula"></div>
+      <div class="tr-bot"><span class="tr-status" id="trStatus"></span><span class="tr-skip" onclick="trainerSkip()">SKIP</span></div>
     </div>
     <div class="stack-rows" id="stackRows"></div>
     <div class="disp-footer">
@@ -363,6 +472,35 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
     <div class="err-line" id="errLine"></div>
   </div>
   <div class="keypad" id="kp"></div>
+
+  <div class="tr-ov" id="trMenu">
+    <div class="trm-side">
+      <div class="trm-title">RPN TRAINER</div>
+      <div class="trm-mode" id="trmCd" onclick="trainerPickMode('cd')">
+        <b>COUNTDOWN</b><span>Solve as many as you can in 60 s</span>
+      </div>
+      <div class="trm-mode" id="trmPar" onclick="trainerPickMode('par')">
+        <b>KEYSTROKE PAR</b><span>10 formulas · no clock · fewest keys</span>
+      </div>
+      <div class="trm-note" id="trmNote"></div>
+      <div class="tr-btn" onclick="trainerClose()">✕ BACK TO CALCULATOR</div>
+    </div>
+    <div class="trm-levels" id="trmLevels"></div>
+  </div>
+
+  <div class="tr-ov" id="trResult">
+    <div class="trr-box">
+      <div class="trr-head" id="trrHead"></div>
+      <div class="trr-score" id="trrScore"></div>
+      <div class="trr-line" id="trrLine"></div>
+      <div class="trr-chips" id="trrChips"></div>
+      <div class="trr-btns">
+        <div class="tr-btn" onclick="trainerStart(tr.level)">AGAIN</div>
+        <div class="tr-btn" onclick="trainerOpen()">LEVELS</div>
+        <div class="tr-btn" onclick="trainerClose()">EXIT</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -535,7 +673,8 @@ function fmt(n){
 function render(){
   const area=document.getElementById('stackRows');
   area.innerHTML='';
-  for(let i=SZ-1;i>=0;i--){
+  // The trainer panel takes the space of the upper registers: show X Y Z T only
+  for(let i=tr.on?3:SZ-1;i>=0;i--){
     const row=document.createElement('div');
     row.className='srow'+(REGS[i]?' '+REGS[i]:'');
     const lbl=document.createElement('span');lbl.className='slbl';lbl.textContent=LBLS[i];
@@ -574,6 +713,7 @@ function commit(){
   if(!isTyping)return;
   const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;
   isTyping=false;inputStr='';
+  if(tr.playing)trainerOnEntry(stack[0]);
 }
 function dgt(d){
   if(!isTyping){
@@ -590,7 +730,7 @@ function startEntry(){
 }
 function toRad(x){return angleMode==='DEG'?x*Math.PI/180:x;}
 function fromRad(x){return angleMode==='DEG'?x*180/Math.PI:x;}
-function toggleAngle(){angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
+function toggleAngle(){if(tr.on){showErr('DEG IN TRAINER');return;}angleMode=angleMode==='DEG'?'RAD':'DEG';render();}
 let isLight=false;
 function toggleTheme(){
   isLight=!isLight;
@@ -760,6 +900,7 @@ function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN
 function P(fn){commit();saveLast();const r=fn(stack[1],stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}  // like B, but keeps Y
 
 function handleKey(k){
+  if(trainerBlocksKeys())return;
   clearErr();
   const isShift=(k.fn==='shiftF'||k.fn==='shiftG');
   let fn;
@@ -768,6 +909,7 @@ function handleKey(k){
   else fn=k.fn;
   if(fn&&A[fn])A[fn]();
   render();
+  if(tr.playing)trainerAfterKey(fn,1);  // one keypad press
 }
 
 // Keyboard (desktop testing)
@@ -779,8 +921,392 @@ document.addEventListener('keydown',e=>{
     '.':'dot','e':'eex','E':'eex','s':'sin','c':'cos',
     't':'tan','l':'ln','L':'log','p':'pi','q':'sqrt',
     'r':'rollDn','x':'swap','n':'chs','a':'abs',};
-  if(map[e.key]){e.preventDefault();clearErr();if(A[map[e.key]]){A[map[e.key]]();render();}}
+  if(map[e.key]){
+    e.preventDefault();
+    if(trainerBlocksKeys())return;
+    const fn=map[e.key];
+    clearErr();
+    if(A[fn]){
+      A[fn]();render();
+      // a shortcut costs what the same function costs on the keypad
+      if(tr.playing)trainerAfterKey(fn,trPress(fn).length);
+    }
+  }
 });
+
+// ═══════════════════════════════════════════
+// TRAINER — key in a formula the RPN way
+// ═══════════════════════════════════════════
+// Countdown ('cd'): solve as many formulas as possible in CD_SECS.
+// Keystroke par ('par'): PAR_SET formulas, no clock, fewest keystrokes.
+// A formula passes when X matches its value. Every number keyed in must
+// appear in the formula, so typing the answer straight in doesn't count.
+// CLR ALL restarts the current formula (and in par mode, its key count).
+const CD_SECS=60,PAR_SET=10,SKIP_PENALTY=5;
+const TR_LEVELS=[
+  {name:'BASICS',    hint:'a + b · a × b · a + b + c'},
+  {name:'BRACKETS',  hint:'(a + b) × c · a + b × c'},
+  {name:'ORDER',     hint:'a − b · a ÷ b · aᵇ · c − (a + b)'},
+  {name:'FUNCTIONS', hint:'√  x²  1/x  LOG  n!  SIN  COS'},
+  {name:'NESTED',    hint:'(a + b) × (c − d) · √(a² + b²)'},
+];
+// Countdown stars: formulas solved for ★ / ★★ / ★★★, per level
+const TR_CD_STARS=[[4,8,12],[3,6,9],[3,6,9],[3,5,8],[2,4,6]];
+
+const tr={
+  on:false,playing:false,busy:false,mode:'cd',level:1,
+  f:null,ans:0,allowed:[],keys:0,par:0,tries:1,tainted:false,msg:'',msgCls:'',
+  solved:0,n:0,results:[],endAt:0,lastSec:0,timer:null,pending:null,saved:null,
+};
+try{if(localStorage.getItem('rpnTrainerMode')==='par')tr.mode='par';}catch(e){}
+
+function trainerBlocksKeys(){return tr.on&&(!tr.playing||tr.busy);}
+
+// ── Formulas: trees of numbers, binary ops and functions ──
+const trN=v=>({t:'n',v});
+const trB=(op,a,b)=>({t:'b',op,a,b});
+const trU=(op,a)=>({t:'u',op,a});
+const ri=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+const TR_GEN=[
+  [ // 1 BASICS
+    ()=>trB('add',trN(ri(2,49)),trN(ri(2,49))),
+    ()=>trB('mul',trN(ri(2,12)),trN(ri(2,12))),
+    ()=>trB('add',trB('add',trN(ri(2,30)),trN(ri(2,30))),trN(ri(2,30))),
+  ],
+  [ // 2 BRACKETS
+    ()=>trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trN(ri(2,9))),
+    ()=>trB('mul',trN(ri(2,9)),trB('add',trN(ri(2,15)),trN(ri(2,15)))),
+    ()=>trB('add',trB('mul',trN(ri(2,12)),trN(ri(2,12))),trN(ri(2,30))),
+    ()=>trB('add',trN(ri(2,30)),trB('mul',trN(ri(2,12)),trN(ri(2,12)))),
+  ],
+  [ // 3 ORDER
+    ()=>{const a=ri(12,90);return trB('sub',trN(a),trN(ri(2,a-3)));},
+    ()=>{const b=ri(2,12);return trB('div',trN(b*ri(2,12)),trN(b));},
+    ()=>trB('pow',trN(ri(2,6)),trN(ri(2,4))),
+    ()=>trB('sub',trN(ri(45,99)),trB('add',trN(ri(2,20)),trN(ri(2,20)))),
+    ()=>{const a=ri(12,40);return trB('mul',trB('sub',trN(a),trN(ri(2,a-3))),trN(ri(2,9)));},
+  ],
+  [ // 4 FUNCTIONS
+    ()=>{const k=ri(2,12);return trB('add',trU('sqrt',trN(k*k)),trN(ri(2,20)));},
+    ()=>trU('sq',trB('add',trN(ri(2,9)),trN(ri(2,9)))),
+    ()=>trB('add',trU('recip',trN(pick([2,4,5,8]))),trU('recip',trN(pick([2,4,5,8,10])))),
+    ()=>trB('mul',trU('log',trN(pick([100,1000,10000]))),trN(ri(2,9))),
+    ()=>trB('sub',trU('fact',trN(ri(4,7))),trN(ri(2,20))),
+    ()=>{const fn=pick(['sin','cos']);return trB('mul',trU(fn,trN(fn==='sin'?30:60)),trN(2*ri(2,20)));},
+  ],
+  [ // 5 NESTED
+    ()=>{const c=ri(10,20);return trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trB('sub',trN(c),trN(ri(2,c-2))));},
+    ()=>{const b=ri(2,9),c=ri(2,9);return trB('div',trN((b+c)*ri(2,9)),trB('add',trN(b),trN(c)));},
+    ()=>{const p=pick([[3,4],[5,12],[6,8],[8,15],[7,24],[9,12],[12,16],[20,21]]);if(Math.random()<.5)p.reverse();
+        return trU('sqrt',trB('add',trU('sq',trN(p[0])),trU('sq',trN(p[1]))));},
+    ()=>{const d=ri(2,6),c=ri(d+2,d+20),s=d*ri(2,9),a=ri(2,s-2);
+        return trB('div',trB('add',trN(a),trN(s-a)),trB('sub',trN(c),trN(c-d)));},
+    ()=>trB('sub',trN(ri(50,150)),trB('mul',trN(ri(2,6)),trB('add',trN(ri(2,9)),trN(ri(2,9))))),
+  ],
+];
+
+const toDeg=x=>x*Math.PI/180;
+function trVal(n){
+  if(n.t==='n')return n.v;
+  if(n.t==='b'){
+    const a=trVal(n.a),b=trVal(n.b);
+    return {add:a+b,sub:a-b,mul:a*b,div:a/b,pow:Math.pow(a,b)}[n.op];
+  }
+  const a=trVal(n.a);
+  switch(n.op){
+    case 'sqrt':return Math.sqrt(a);
+    case 'sq':return a*a;
+    case 'recip':return 1/a;
+    case 'log':return Math.log10(a);
+    case 'fact':{let r=1;for(let i=2;i<=a;i++)r*=i;return r;}
+    case 'sin':return Math.sin(toDeg(a));
+    case 'cos':return Math.cos(toDeg(a));
+  }
+}
+function trNodes(n,out=[]){out.push(n);if(n.a)trNodes(n.a,out);if(n.b)trNodes(n.b,out);return out;}
+const trSame=(x,y)=>Math.abs(x-y)<=1e-9*Math.max(1,Math.abs(y));
+
+// Numbers the player may key in: the formula's own, plus 1 for 1/x
+function trAllowed(f){
+  const nodes=trNodes(f);
+  const out=nodes.filter(n=>n.t==='n').map(n=>n.v);
+  if(nodes.some(n=>n.op==='recip'))out.push(1);
+  return out;
+}
+// A formula is fair if its answer isn't one of its numbers and no part of
+// it already equals the answer (so it can't pass part-way through).
+function trFair(f){
+  const ans=trVal(f);
+  if(!isFinite(ans)||ans===0||Math.abs(ans)>1e7)return false;
+  if(trAllowed(f).some(v=>trSame(Math.abs(ans),v)))return false;
+  return trNodes(f).slice(1).every(n=>!trSame(trVal(n),ans));
+}
+function trMake(level){
+  for(let i=0;i<100;i++){const f=pick(TR_GEN[level-1])();if(trFair(f))return f;}
+  return trB('add',trN(3),trN(4));
+}
+
+// ── Formula text ──
+const TR_SYM={add:'+',sub:'−',mul:'×',div:'÷'};
+const TR_PREC={add:1,sub:1,mul:2,div:2};
+const trSup=v=>String(v).replace(/\d/g,d=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[d]);
+function trPrec(n){
+  if(n.t==='n')return 9;
+  if(n.t==='b')return n.op==='pow'?3:TR_PREC[n.op];
+  return n.op==='recip'?2:4;
+}
+function trWrap(n,need){const s=trText(n);return trPrec(n)<need?'('+s+')':s;}
+function trText(n){
+  if(n.t==='n')return String(n.v);
+  if(n.t==='b'){
+    if(n.op==='pow')return trWrap(n.a,9)+trSup(n.b.v);
+    const p=TR_PREC[n.op],strict=n.op==='sub'||n.op==='div';
+    return trWrap(n.a,p)+' '+TR_SYM[n.op]+' '+trWrap(n.b,strict?p+1:p);
+  }
+  const a=trWrap(n.a,9);
+  switch(n.op){
+    case 'sqrt':return '√'+a;
+    case 'sq':return a+'²';
+    case 'fact':return a+'!';
+    case 'recip':return '1/'+a;
+    case 'sin':case 'cos':return n.op+' '+a+'°';
+    default:return n.op+' '+a;
+  }
+}
+
+// ── Par: the shortest straightforward keystroke route ──
+const TR_OPFN={add:'add',sub:'sub',mul:'mul',div:'div',pow:'yx',
+  sqrt:'sqrt',sq:'sq',recip:'recip',log:'log',fact:'fact',sin:'sin',cos:'cos'};
+// Keypad presses for a function: shifted ones take f or g first
+function trPress(fn){
+  let k=KEYS.find(k=>k.fn===fn);if(k)return [k];
+  k=KEYS.find(k=>k.fFn===fn);if(k)return [KEYS.find(k=>k.fn==='shiftF'),k];
+  k=KEYS.find(k=>k.gFn===fn);if(k)return [KEYS.find(k=>k.fn==='shiftG'),k];
+  return [];
+}
+function trCost(seq){return seq.reduce((s,fn)=>s+trPress(fn).length,0);}
+function trNumKeys(v){
+  let s=String(v),z=0;
+  while(s.length>3&&s.endsWith('000')){s=s.slice(0,-3);z++;}  // the 000 key
+  return [...s].map(c=>c==='.'?'dot':'d'+c).concat(Array(z).fill('d000'));
+}
+// afterNum: the previous step keyed in a number, so a new one needs ENTER first
+function trRoute(n,afterNum){
+  if(n.t==='n')return (afterNum?['enter']:[]).concat(trNumKeys(n.v));
+  if(n.t==='u')return trRoute(n.a,afterNum).concat(TR_OPFN[n.op]);
+  const op=TR_OPFN[n.op],comm=n.op==='add'||n.op==='mul';
+  const ab=trRoute(n.a,afterNum).concat(trRoute(n.b,n.a.t==='n'),op);
+  const ba=trRoute(n.b,afterNum).concat(trRoute(n.a,n.b.t==='n'),comm?[op]:['swap',op]);
+  return trCost(ba)<trCost(ab)?ba:ab;
+}
+
+// ── Sounds & flashes ──
+function trTone(freq,t,dur,type,vol){
+  const a=audioCtx,o=a.createOscillator(),g=a.createGain();
+  o.type=type||'sine';o.frequency.value=freq;
+  g.gain.setValueAtTime(vol||0.12,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+dur);
+}
+function trSound(kind){
+  if(!isSoundOn||!audioCtx||audioCtx.state!=='running')return;
+  const t=audioCtx.currentTime;
+  if(kind==='ok'){trTone(880,t,.09);trTone(1320,t+.08,.16);}
+  else if(kind==='birdie')[880,1109,1319,1760].forEach((f,i)=>trTone(f,t+i*.07,.14));
+  else if(kind==='bad')trTone(150,t,.2,'square',.05);
+  else if(kind==='tick')trTone(1000,t,.04,'sine',.06);
+  else if(kind==='end')[784,659,523].forEach((f,i)=>trTone(f,t+i*.15,.18));
+}
+function trFlash(cls){
+  const d=document.getElementById('disp');
+  d.classList.remove('flash-ok','flash-bad');d.classList.add(cls);
+  setTimeout(()=>d.classList.remove(cls),400);
+}
+
+// ── Best scores (this device only) ──
+function trLoadBest(){
+  try{const b=JSON.parse(localStorage.getItem('rpnTrainerBest'));if(b&&b.cd&&b.par)return b;}catch(e){}
+  return {cd:{},par:{}};
+}
+function trSaveBest(b){try{localStorage.setItem('rpnTrainerBest',JSON.stringify(b));}catch(e){}}
+function trStars(mode,level,score){
+  if(mode==='cd'){const s=TR_CD_STARS[level-1];return score>=s[2]?3:score>=s[1]?2:score>=s[0]?1:0;}
+  return score<=0?3:score<=4?2:1;  // par: strokes over par for the set
+}
+const trStarText=n=>'★'.repeat(n)+'☆'.repeat(3-n);
+const trSigned=v=>v>0?'+'+v:v<0?'−'+(-v):'0';
+
+// ── Menu ──
+function trainerButton(){if(tr.on)trainerClose();else trainerOpen();}
+function trainerOpen(){
+  trStop();
+  if(!tr.on){
+    tr.saved={stack:stack.slice(),inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled};
+    tr.on=true;
+  }
+  tr.playing=false;
+  document.getElementById('trResult').classList.remove('show');
+  document.getElementById('trMenu').classList.add('show');
+  trainerPickMode(tr.mode);
+}
+function trainerPickMode(m){
+  tr.mode=m;
+  try{localStorage.setItem('rpnTrainerMode',m);}catch(e){}
+  document.getElementById('trmCd').classList.toggle('sel',m==='cd');
+  document.getElementById('trmPar').classList.toggle('sel',m==='par');
+  document.getElementById('trmNote').textContent=m==='cd'
+    ?'Key each formula in RPN until X shows its value. Use only the numbers in the formula. CLR ALL starts a formula over; SKIP moves on.'
+    :'Par is the keystroke count of a standard RPN route; f and g count as a press. CLR ALL restarts a formula and its count. Beat par for a birdie. SKIP costs par + '+SKIP_PENALTY+'.';
+  const best=trLoadBest()[m],box=document.getElementById('trmLevels');
+  box.innerHTML='';
+  TR_LEVELS.forEach((L,i)=>{
+    const lv=i+1,b=best[lv];
+    const el=document.createElement('div');el.className='trm-lv';
+    el.innerHTML='<div class="n">'+lv+'</div><div class="t"><b></b><span></span></div><div class="best"></div>';
+    el.querySelector('b').textContent=L.name;
+    el.querySelector('.t span').textContent=L.hint;
+    el.querySelector('.best').innerHTML=b===undefined?'—'
+      :'BEST '+(m==='cd'?b:trSigned(b))+'<br><span class="stars">'+trStarText(trStars(m,lv,b))+'</span>';
+    el.onclick=()=>trainerStart(lv);
+    box.appendChild(el);
+  });
+}
+function trainerClose(){
+  trStop();
+  document.getElementById('trMenu').classList.remove('show');
+  document.getElementById('trResult').classList.remove('show');
+  document.getElementById('disp').classList.remove('training');
+  document.getElementById('trainBtn').textContent='TRAIN';
+  if(tr.saved)({stack,inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled}=tr.saved);
+  tr.saved=null;tr.on=false;tr.playing=false;
+  render();
+}
+
+// ── Play ──
+function trainerStart(level){
+  trStop();
+  document.getElementById('trMenu').classList.remove('show');
+  document.getElementById('trResult').classList.remove('show');
+  document.getElementById('disp').classList.add('training');
+  document.getElementById('trainBtn').textContent='EXIT';
+  angleMode='DEG';
+  Object.assign(tr,{level,playing:true,busy:false,solved:0,n:0,results:[]});
+  if(tr.mode==='cd'){
+    tr.endAt=performance.now()+CD_SECS*1000;tr.lastSec=CD_SECS;
+    tr.timer=setInterval(trTick,200);
+  }
+  trNext();
+}
+function trStop(){
+  clearInterval(tr.timer);clearTimeout(tr.pending);
+  tr.timer=tr.pending=null;tr.busy=false;
+}
+function trNext(){
+  tr.f=trMake(tr.level);
+  tr.ans=trVal(tr.f);
+  tr.allowed=trAllowed(tr.f);
+  tr.par=trCost(trRoute(tr.f,false));
+  tr.keys=0;tr.tries=1;tr.tainted=false;tr.msg='';tr.busy=false;
+  A.clrAll();shiftMode=0;
+  render();trUpdate();
+}
+function trUpdate(){
+  const cd=tr.mode==='cd';
+  document.getElementById('trProg').textContent='L'+tr.level+' · '+(cd?'SOLVED '+tr.solved:(tr.n+1)+'/'+PAR_SET);
+  const m=document.getElementById('trMeter');
+  if(cd){
+    const s=Math.max(0,Math.ceil((tr.endAt-performance.now())/1000));
+    m.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+    m.classList.toggle('hot',s<=10);
+  }else{
+    m.textContent='KEYS '+tr.keys+' · PAR '+tr.par;
+    m.classList.remove('hot');
+  }
+  document.getElementById('trFormula').textContent=trText(tr.f);
+  const st=document.getElementById('trStatus');
+  st.className='tr-status '+(tr.msg?tr.msgCls:'');
+  st.textContent=tr.msg||(!cd&&tr.tries>1?'TRY '+tr.tries:'');
+}
+function trSay(msg,cls){tr.msg=msg;tr.msgCls=cls;trUpdate();}
+function trTick(){
+  const left=tr.endAt-performance.now();
+  const s=Math.ceil(left/1000);
+  if(s<tr.lastSec){tr.lastSec=s;if(s<=5&&s>0)trSound('tick');}
+  if(left<=0){trFinish();return;}
+  trUpdate();
+}
+
+// commit() reports each number keyed in
+function trainerOnEntry(v){
+  if(tr.allowed.some(a=>trSame(Math.abs(v),a)))return;
+  tr.tainted=true;
+  trSound('bad');trFlash('flash-bad');
+  trSay(fmt(v)+' NOT IN FORMULA · CLR ALL','bad');
+}
+// After every key: count it, then check whether X holds the answer
+function trainerAfterKey(fn,cost){
+  if(fn==='clrAll'){
+    tr.keys=0;tr.tries++;tr.tainted=false;tr.msg='';
+    trUpdate();return;
+  }
+  tr.keys+=cost;
+  if(!isTyping&&!tr.tainted&&trSame(stack[0],tr.ans))trSolved();
+  else trUpdate();
+}
+function trSolved(){
+  tr.busy=true;
+  trFlash('flash-ok');
+  if(tr.mode==='cd'){
+    tr.solved++;
+    trSound('ok');trSay('✓ SOLVED','ok');
+    tr.pending=setTimeout(trNext,600);
+    return;
+  }
+  tr.results.push({keys:tr.keys,par:tr.par});
+  const d=tr.keys-tr.par;
+  trSound(d<0?'birdie':'ok');
+  trSay(d<0?'✓ BIRDIE! '+trSigned(d):d===0?'✓ ON PAR':'✓ '+trSigned(d)+' OVER PAR','ok');
+  tr.pending=setTimeout(trAdvance,1300);
+}
+function trAdvance(){
+  tr.n++;
+  if(tr.n>=PAR_SET)trFinish();else trNext();
+}
+function trainerSkip(){
+  if(!tr.playing||tr.busy)return;
+  if(tr.mode==='cd'){trNext();return;}
+  tr.results.push({keys:tr.par+SKIP_PENALTY,par:tr.par,skipped:true});
+  trAdvance();
+}
+function trFinish(){
+  trStop();
+  tr.playing=false;
+  trSound('end');
+  const cd=tr.mode==='cd',lv=tr.level;
+  const score=cd?tr.solved:tr.results.reduce((s,r)=>s+r.keys-r.par,0);
+  const all=trLoadBest(),old=all[tr.mode][lv];
+  const isBest=old===undefined||(cd?score>old:score<old);
+  if(isBest){all[tr.mode][lv]=score;trSaveBest(all);}
+  document.getElementById('trrHead').textContent='LEVEL '+lv+' · '+TR_LEVELS[lv-1].name+' · '+(cd?'COUNTDOWN':'KEYSTROKE PAR');
+  document.getElementById('trrScore').innerHTML=(cd?'SOLVED '+score:trSigned(score)+' PAR')
+    +'<span class="stars">'+trStarText(trStars(tr.mode,lv,score))+'</span>';
+  const line=document.getElementById('trrLine');
+  if(cd)line.textContent=isBest&&score>0?'NEW BEST!':'BEST '+(isBest?score:old);
+  else{
+    const keys=tr.results.reduce((s,r)=>s+r.keys,0),par=tr.results.reduce((s,r)=>s+r.par,0);
+    line.textContent=keys+' KEYS · PAR '+par+' · '+(isBest?'NEW BEST!':'BEST '+trSigned(old));
+  }
+  line.classList.toggle('new',isBest&&(score>0||!cd));
+  const chips=document.getElementById('trrChips');chips.innerHTML='';
+  if(!cd)tr.results.forEach((r,i)=>{
+    const d=r.keys-r.par,c=document.createElement('span');
+    c.className=d<0?'under':d>0?'over':'';
+    c.textContent=(i+1)+': '+(r.skipped?'SKIP':trSigned(d));
+    chips.appendChild(c);
+  });
+  document.getElementById('trResult').classList.add('show');
+}
 
 buildKeypad();
 render();
