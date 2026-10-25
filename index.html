@@ -50,12 +50,18 @@
   ║     ← after entry is terminated acts as CLx. CHS after EEX changes  ║
   ║     the exponent sign. %, Δ%, %T keep Y. →R/→P: r,x in X; θ,y in Y. ║
   ║     This replicates authentic HP 15C stack behaviour.               ║
+  ║     Complex numbers: stackI holds the imaginary parts (15C style).   ║
+  ║     Every key goes through exec(), which first completes a pending   ║
+  ║     STO/RCL (registers 0-9, optionally + − × ÷ before the digit).   ║
   ║                                                                      ║
-  ║  7. KEY LAYOUT — 10 cols × 4 rows                                   ║
-  ║     Left block (cols 1-5): scientific functions                      ║
-  ║     Col 6: CHS (row1), EEX (row2), ENTER spanning rows 3-4          ║
+  ║  7. KEY LAYOUT — 10 cols × 4 rows, related functions together        ║
+  ║     Left block (cols 1-5), one family per row:                       ║
+  ║       row 1 powers, roots, π · row 2 logs, trig                      ║
+  ║       row 3 %, complex (i), stack ops next to ENTER                  ║
+  ║       row 4 f, g, STO, RCL, LSTx                                     ║
+  ║     Inverses share a key (main / f). Col 6: CHS, EEX, ENTER (2 rows) ║
   ║     Cols 7-9: digits (7-9, 4-6, 1-3, 0/./000)                      ║
-  ║     Col 10: operators (÷ × − +)                                     ║
+  ║     Col 10: operators (÷ × − +), with MOD on f ÷ and x! on f ×       ║
   ║     Gold labels = f-shift, printed on body ABOVE button             ║
   ║     Blue labels = g-shift, printed on chamfer at bottom of button   ║
   ║                                                                      ║
@@ -205,6 +211,8 @@ html,body{
 .srow.xreg .sval{color:#fff;font-size:20px;}
 .srow.yreg .slbl{color:#ddd;}
 .srow.yreg .sval{color:#eee;font-size:14px;}
+.srow .sval.long{font-size:11px;}
+.srow.xreg .sval.long{font-size:14px;}
 
 .disp-footer{
   flex-shrink:0;display:flex;justify-content:space-between;align-items:center;
@@ -292,7 +300,6 @@ html,body{
 .gkey .kf{background:#1a1a1a;} .gkey .ml{color:#55ddff;}
 .numk .kf{background:#252525;}
 .opk  .kf{background:#1e1e1e;}
-.clall-k .kf{background:#1e1010;} .clall-k .ml{color:#ff7070;}
 .fkey.slit{box-shadow:0 0 10px rgba(255,204,0,.6),0 3px 0 rgba(0,0,0,.9);}
 .gkey.slit{box-shadow:0 0 10px rgba(85,221,255,.6),0 3px 0 rgba(0,0,0,.9);}
 
@@ -326,8 +333,6 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
 .light .gkey .ml{ color:#0066bb; }
 .light .numk .kf{ background:#e8e8e8; }
 .light .opk  .kf{ background:#dcdcdc; }
-.light .clall-k .kf{ background:#f0e0e0; }
-.light .clall-k .ml{ color:#cc2222; }
 
 /* Theme toggle button */
 .theme-btn{
@@ -489,12 +494,16 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
     </div>
     <div class="disp-aux">
       <div class="aux-row">
-        <span class="aux-lbl lbl-m">MEM</span>
+        <span class="aux-lbl lbl-m" id="auxMemLbl">MEM</span>
         <span class="aux-val val-m" id="auxMem">—</span>
       </div>
       <div class="aux-row">
         <span class="aux-lbl lbl-last">LST</span>
         <span class="aux-val val-last" id="auxLast">—</span>
+      </div>
+      <div class="aux-row" id="auxCpx" style="display:none">
+        <span class="aux-lbl lbl-last">CPX</span>
+        <span class="aux-val val-last">COMPLEX MODE</span>
       </div>
     </div>
     <div class="tr-panel">
@@ -616,8 +625,15 @@ let stack=new Array(SZ).fill(0);
 let inputStr='',isTyping=false;
 let shiftMode=0;
 let angleMode='DEG';
-let memory=0,memUsed=false,lastX=0;
+let lastX=0;
 let liftEnabled=true;  // HP-style stack lift flag
+// Complex numbers, as on the HP-15C: an imaginary stack parallel to the real
+// one (stackI[i] is the imaginary part of stack[i]). cmode is set by i, I and
+// Re⇄Im and lets √, LN, yˣ… return complex results for real inputs (√−4 = 2i).
+let stackI=new Array(SZ).fill(0),lastXI=0,cmode=false;
+// Registers 0–9 (real and imaginary parts). STO and RCL wait for a register
+// digit, optionally after + − × ÷ (register arithmetic): pend holds that state.
+let regRe=new Array(10).fill(0),regIm=new Array(10).fill(0),lastReg=-1,pend=null;
 const LBLS=['X','Y','Z','T','5','6','7','8'];
 const REGS=['xreg','yreg','','','','','',''];
 
@@ -625,48 +641,48 @@ const REGS=['xreg','yreg','','','','','',''];
 // KEY TABLE
 // ═══════════════════════════════════════════
 const KEYS=[
-  // ROW 1 — powers & logs
-  {c:1, r:1, main:'x²',   gold:'√x',    blue:'',     fn:'sq',    fFn:'sqrt'                  },
-  {c:2, r:1, main:'yˣ',   gold:'x√y',   blue:'%T',   fn:'yx',    fFn:'xrty',  gFn:'pctt'    },
-  {c:3, r:1, main:'1/x',  gold:'',      blue:'',     fn:'recip'                              },
-  {c:4, r:1, main:'LN',   gold:'eˣ',    blue:'%',    fn:'ln',    fFn:'expx',  gFn:'pct'     },
-  {c:5, r:1, main:'LOG',  gold:'10ˣ',   blue:'Δ%',   fn:'log',   fFn:'pow10', gFn:'dpct'    },
-  {c:6, r:1, main:'CHS',  gold:'INT',   blue:'FRAC', fn:'chs',   fFn:'intg',  gFn:'frac'    },
-  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',   fn:'d7'                                 },
-  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',   fn:'d8'                                 },
-  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',   fn:'d9'                                 },
-  {c:10,r:1, main:'÷',    cls:'opk',    msz:'op',    fn:'div'                                },
+  // ROW 1 — powers & roots, constants; CHS with ABS/INT, ÷ with MOD
+  {c:1, r:1, main:'√x',   gold:'',      blue:'',     fn:'sqrt'                              },
+  {c:2, r:1, main:'x²',   gold:'',      blue:'',     fn:'sq'                                },
+  {c:3, r:1, main:'yˣ',   gold:'x√y',   blue:'',     fn:'yx',    fFn:'xrty'                 },
+  {c:4, r:1, main:'1/x',  gold:'',      blue:'',     fn:'recip'                             },
+  {c:5, r:1, main:'π',    gold:'2π',    blue:'e',    fn:'pi',    fFn:'twopi', gFn:'euler'   },
+  {c:6, r:1, main:'CHS',  gold:'ABS',   blue:'INT',  fn:'chs',   fFn:'abs',   gFn:'intg'    },
+  {c:7, r:1, main:'7',    cls:'numk',   msz:'num',   fn:'d7'                                },
+  {c:8, r:1, main:'8',    cls:'numk',   msz:'num',   fn:'d8'                                },
+  {c:9, r:1, main:'9',    cls:'numk',   msz:'num',   fn:'d9'                                },
+  {c:10,r:1, main:'÷',    gold:'MOD',   cls:'opk',   msz:'op',    fn:'div',   fFn:'mod'     },
 
-  // ROW 2 — constants & trig
-  {c:1, r:2, main:'π',    gold:'2π',    blue:'e',    fn:'pi',    fFn:'twopi', gFn:'euler'   },
-  {c:2, r:2, main:'x!',   gold:'',      blue:'',     fn:'fact'                               },
-  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',   fn:'sin',   fFn:'asin',  gFn:'toRec'  },
-  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',   fn:'cos',   fFn:'acos',  gFn:'toPol'  },
-  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'→H',   fn:'tan',   fFn:'atan',  gFn:'toHrs'  },
-  {c:6, r:2, main:'EEX',  gold:'',      blue:'',     fn:'eex'                                },
-  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',   fn:'d4'                                 },
-  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',   fn:'d5'                                 },
-  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',   fn:'d6'                                 },
-  {c:10,r:2, main:'×',    cls:'opk',    msz:'op',    fn:'mul'                                },
+  // ROW 2 — logs & trig; EEX with RND/FRAC, × with x!
+  {c:1, r:2, main:'LN',   gold:'eˣ',    blue:'',     fn:'ln',    fFn:'expx'                 },
+  {c:2, r:2, main:'LOG',  gold:'10ˣ',   blue:'',     fn:'log',   fFn:'pow10'                },
+  {c:3, r:2, main:'SIN',  gold:'SIN⁻¹', blue:'→R',   fn:'sin',   fFn:'asin',  gFn:'toRec'   },
+  {c:4, r:2, main:'COS',  gold:'COS⁻¹', blue:'→P',   fn:'cos',   fFn:'acos',  gFn:'toPol'   },
+  {c:5, r:2, main:'TAN',  gold:'TAN⁻¹', blue:'',     fn:'tan',   fFn:'atan'                 },
+  {c:6, r:2, main:'EEX',  gold:'RND',   blue:'FRAC', fn:'eex',   fFn:'rnd',   gFn:'frac'    },
+  {c:7, r:2, main:'4',    cls:'numk',   msz:'num',   fn:'d4'                                },
+  {c:8, r:2, main:'5',    cls:'numk',   msz:'num',   fn:'d5'                                },
+  {c:9, r:2, main:'6',    cls:'numk',   msz:'num',   fn:'d6'                                },
+  {c:10,r:2, main:'×',    gold:'x!',    cls:'opk',   msz:'op',    fn:'mul',   fFn:'fact'    },
 
-  // ROW 3 — stack ops
-  {c:1, r:3, main:'%',    gold:'',      blue:'',     fn:'pct'                                },
-  {c:2, r:3, main:'MOD',  gold:'ABS',   blue:'',     fn:'mod',   fFn:'abs'                  },
-  {c:3, r:3, main:'R↓',   gold:'',      blue:'R↑',   fn:'rollDn',             gFn:'rollUp' },
-  {c:4, r:3, main:'x⇄y',  gold:'RND',   blue:'INT',  fn:'swap',  fFn:'rnd',   gFn:'intg',  msz:'sm'},
-  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',  fn:'bksp',  fFn:'clrAll',gFn:'clx'   },
-  {c:6, r:3, rs:2, main:'ENTER', gold:'', blue:'LSTx', cls:'enter-k', msz:'ent', fn:'enter', gFn:'lastx'},
+  // ROW 3 — percent, complex, stack (next to ENTER)
+  {c:1, r:3, main:'%',    gold:'Δ%',    blue:'%T',   fn:'pct',   fFn:'dpct',  gFn:'pctt'    },
+  {c:2, r:3, main:'i',    gold:'I',     blue:'Re⇄Im',msz:'num',  fn:'imag',  fFn:'mkcplx', gFn:'reim'},
+  {c:3, r:3, main:'x⇄y',  gold:'',      blue:'',     fn:'swap',                msz:'sm'     },
+  {c:4, r:3, main:'R↓',   gold:'',      blue:'R↑',   fn:'rollDn',             gFn:'rollUp' },
+  {c:5, r:3, main:'←',    gold:'CLR',   blue:'CLx',  fn:'bksp',  fFn:'clrAll',gFn:'clx'     },
+  {c:6, r:3, rs:2, main:'ENTER', gold:'', blue:'', cls:'enter-k', msz:'ent', fn:'enter'       },
   {c:7, r:3, main:'1',    cls:'numk',   msz:'num',   fn:'d1'                                },
   {c:8, r:3, main:'2',    cls:'numk',   msz:'num',   fn:'d2'                                },
   {c:9, r:3, main:'3',    cls:'numk',   msz:'num',   fn:'d3'                                },
   {c:10,r:3, main:'−',    cls:'opk',    msz:'op',    fn:'sub'                               },
 
-  // ROW 4 — control
-  {c:1, r:4, main:'CL\nALL', gold:'', blue:'', cls:'clall-k', msz:'cl', fn:'clrAll'          },
-  {c:2, r:4, main:'f',    gold:'',      blue:'',     cls:'fkey',  fn:'shiftF'               },
-  {c:3, r:4, main:'g',    gold:'',      blue:'',     cls:'gkey',  fn:'shiftG'               },
-  {c:4, r:4, main:'STO',  gold:'',      blue:'',     fn:'sto',                 msz:'sm'     },
-  {c:5, r:4, main:'RCL',  gold:'',      blue:'',     fn:'rcl',                 msz:'sm'     },
+  // ROW 4 — shifts, memory, last X
+  {c:1, r:4, main:'f',    gold:'',      blue:'',     cls:'fkey',  fn:'shiftF'               },
+  {c:2, r:4, main:'g',    gold:'',      blue:'',     cls:'gkey',  fn:'shiftG'               },
+  {c:3, r:4, main:'STO',  gold:'CLR REG', blue:'',   fn:'sto',   fFn:'clrReg', msz:'sm'     },
+  {c:4, r:4, main:'RCL',  gold:'',      blue:'',     fn:'rcl',                 msz:'sm'     },
+  {c:5, r:4, main:'LSTx', gold:'',      blue:'',     fn:'lastx',               msz:'sm'     },
   // col 6 = ENTER span
   {c:7, r:4, main:'0',    cls:'numk',   msz:'num',   fn:'d0'                                },
   {c:8, r:4, main:'·',    cls:'numk',   msz:'num',   fn:'dot'                               },
@@ -729,6 +745,15 @@ function fmt(n){
   return sign+d.replace(/\B(?=(\d{3})+(?!\d))/g,',')+decP;
 }
 
+// A complex number as "2 + 7i", with fewer digits per part so it fits
+function fmtC(re,im){
+  if(!im)return fmt(re);
+  const part=v=>{const a=Math.abs(v);return (a!==0&&(a>=1e9||a<1e-4))?a.toExponential(3).replace('e+','e').replace('e-','e−'):String(parseFloat(a.toPrecision(7)));};
+  const m=part(im)+'i';
+  if(!re)return (im<0?'−':'')+m;
+  return (re<0?'−':'')+part(re)+(im<0?' − ':' + ')+m;
+}
+
 // ═══════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════
@@ -741,16 +766,23 @@ function render(){
     row.className='srow'+(REGS[i]?' '+REGS[i]:'');
     const lbl=document.createElement('span');lbl.className='slbl';lbl.textContent=LBLS[i];
     const val=document.createElement('span');val.className='sval';
-    val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmt(stack[i]);
+    val.textContent=(i===0&&isTyping)?(inputStr||'0'):fmtC(stack[i],stackI[i]);
+    if(stackI[i]&&val.textContent.length>12)val.classList.add('long');
     row.appendChild(lbl);row.appendChild(val);area.appendChild(row);
   }
   document.getElementById('annF').className='ind ind-f'+(shiftMode===1?' on':'');
   document.getElementById('annG').className='ind ind-g'+(shiftMode===2?' on':'');
-  document.getElementById('annM').className='ind ind-m'+(memUsed?' on':'');
+  const regsUsed=regRe.some(v=>v)||regIm.some(v=>v);
+  document.getElementById('annM').className='ind ind-m'+(regsUsed?' on':'');
   document.getElementById('angBtn').textContent=angleMode;
   // Aux registers
-  document.getElementById('auxMem').textContent  = memUsed ? fmt(memory) : '—';
-  document.getElementById('auxLast').textContent = lastX!==0 ? fmt(lastX) : '—';
+  document.getElementById('auxMemLbl').textContent = lastReg<0?'MEM':'R'+lastReg;
+  document.getElementById('auxMem').textContent  = lastReg<0?'—':fmtC(regRe[lastReg],regIm[lastReg]);
+  document.getElementById('auxLast').textContent = lastX||lastXI ? fmtC(lastX,lastXI) : '—';
+  document.getElementById('auxCpx').style.display = cmode?'':'none';
+  // STO / RCL waiting for a register: show what has been keyed so far
+  if(pend)document.getElementById('errLine').textContent=
+    (pend.op==='sto'?'STO':'RCL')+(pend.ar?' '+{add:'+',sub:'−',mul:'×',div:'÷'}[pend.ar]:'')+' _';
   document.querySelectorAll('[data-sk]').forEach(b=>{
     b.classList.remove('slit');
     if(shiftMode===1&&b.dataset.sk==='f')b.classList.add('slit');
@@ -765,15 +797,15 @@ function clearErr(){document.getElementById('errLine').textContent='';}
 // ═══════════════════════════════════════════
 // STACK
 // ═══════════════════════════════════════════
-function lift(){for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];}
-function drop(){for(let i=0;i<SZ-1;i++)stack[i]=stack[i+1];}
+function lift(){for(let i=SZ-1;i>0;i--){stack[i]=stack[i-1];stackI[i]=stackI[i-1];}}
+function drop(){for(let i=0;i<SZ-1;i++){stack[i]=stack[i+1];stackI[i]=stackI[i+1];}}
 // Recall a value into X (π, e, RCL, LSTx). Like keyed-in numbers, it
 // overwrites X when stack lift is disabled (after ENTER, CLx, ←).
-function recallX(v){commit();if(liftEnabled)lift();stack[0]=v;liftEnabled=true;}
-function saveLast(){lastX=stack[0];}
+function recallX(v,vi=0){commit();if(liftEnabled)lift();stack[0]=v;stackI[0]=vi;liftEnabled=true;}
+function saveLast(){lastX=stack[0];lastXI=stackI[0];}
 function commit(){
   if(!isTyping)return;
-  const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;
+  const v=parseFloat(inputStr);stack[0]=isNaN(v)?0:v;stackI[0]=0;
   isTyping=false;inputStr='';
   if(tr.playing)trainerOnEntry(stack[0]);
 }
@@ -880,6 +912,75 @@ function toggleSound(){
 }
 
 // ═══════════════════════════════════════════
+// COMPLEX ARITHMETIC on [re, im] pairs
+// ═══════════════════════════════════════════
+// Complex SIN, COS, TAN and their inverses work in radians, as on the
+// HP-15C; real numbers still follow DEG/RAD.
+const C={
+  add:(a,b)=>[a[0]+b[0],a[1]+b[1]],
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1]],
+  mul:(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]],
+  div:(a,b)=>{const d=b[0]*b[0]+b[1]*b[1];return [(a[0]*b[0]+a[1]*b[1])/d,(a[1]*b[0]-a[0]*b[1])/d];},
+  abs:a=>Math.hypot(a[0],a[1]),
+  arg:a=>Math.atan2(a[1],a[0]),
+  exp:a=>{const e=Math.exp(a[0]);return [e*Math.cos(a[1]),e*Math.sin(a[1])];},
+  ln:a=>[Math.log(C.abs(a)),C.arg(a)],
+  sqrt:a=>{const r=Math.sqrt(C.abs(a)),t=C.arg(a)/2;return [r*Math.cos(t),r*Math.sin(t)];},
+  pow:(a,b)=>a[0]===0&&a[1]===0?(b[0]>0?[0,0]:[NaN,NaN]):C.exp(C.mul(b,C.ln(a))),
+  sin:a=>[Math.sin(a[0])*Math.cosh(a[1]),Math.cos(a[0])*Math.sinh(a[1])],
+  cos:a=>[Math.cos(a[0])*Math.cosh(a[1]),-Math.sin(a[0])*Math.sinh(a[1])],
+  tan:a=>C.div(C.sin(a),C.cos(a)),
+  // asin z = −i ln(iz + √(1 − z²)), acos z = π/2 − asin z,
+  // atan z = (i/2) ln((i + z) / (i − z))
+  asin:a=>{const w=C.ln(C.add([-a[1],a[0]],C.sqrt(C.sub([1,0],C.mul(a,a)))));return [w[1],-w[0]];},
+  acos:a=>C.sub([Math.PI/2,0],C.asin(a)),
+  atan:a=>{const w=C.ln(C.div([a[0],1+a[1]],[-a[0],1-a[1]]));return [-w[1]/2,w[0]/2];},
+};
+// Drop rounding noise, e.g. e^(iπ) = −1 + 1.2e−16i
+function clean(z){const s=Math.max(Math.abs(z[0]),Math.abs(z[1]));return z.map(v=>Math.abs(v)<1e-14*s?0:v);}
+function setX(z){stack[0]=z[0];stackI[0]=z[1];}
+const ok=z=>z.every(isFinite);
+
+// ═══════════════════════════════════════════
+// REGISTERS: STO n, RCL n, STO + n, RCL × n …
+// ═══════════════════════════════════════════
+const AR_OPS={add:C.add,sub:C.sub,mul:C.mul,div:C.div};
+function regOp(p,n){
+  const x=[stack[0],stackI[0]],r=[regRe[n],regIm[n]];
+  lastReg=n;
+  if(p.op==='sto'){
+    const v=p.ar?clean(AR_OPS[p.ar](r,x)):x;   // register ← register op X
+    if(!ok(v)){showErr('DIV BY 0');return;}
+    regRe[n]=v[0];regIm[n]=v[1];liftEnabled=true;return;
+  }
+  if(!p.ar){recallX(r[0],r[1]);return;}
+  const v=clean(AR_OPS[p.ar](x,r));             // X ← X op register
+  if(!ok(v)){showErr('DIV BY 0');return;}
+  saveLast();setX(v);liftEnabled=true;
+}
+// The whole calculator state, to save and restore around the trainer
+function calcState(){
+  return {stack:stack.slice(),stackI:stackI.slice(),inputStr,isTyping,shiftMode,angleMode,
+    regRe:regRe.slice(),regIm:regIm.slice(),lastReg,lastX,lastXI,liftEnabled,cmode,pend};
+}
+function setCalcState(c){
+  ({inputStr,isTyping,shiftMode,angleMode,lastReg,lastX,lastXI,liftEnabled,cmode,pend}=c);
+  stack=c.stack.slice();stackI=c.stackI.slice();regRe=c.regRe.slice();regIm=c.regIm.slice();
+}
+// Every key goes through exec: it completes a pending STO / RCL first.
+// Any key other than + − × ÷ or a digit cancels it.
+function exec(fn){
+  if(pend){
+    if(AR_OPS[fn]&&!pend.ar){pend.ar=fn;return;}
+    const m=/^d(\d)$/.exec(fn),p=pend;
+    pend=null;
+    if(m)regOp(p,+m[1]);
+    return;
+  }
+  if(A[fn])A[fn]();
+}
+
+// ═══════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════
 const A={
@@ -890,7 +991,7 @@ const A={
   dot(){if(!isTyping){startEntry();inputStr='0';isTyping=true;}if(!inputStr.includes('.')&&!inputStr.includes('e'))inputStr+='.';},
   eex(){if(!isTyping){startEntry();inputStr='1';isTyping=true;}if(!inputStr.includes('e'))inputStr+='e';},
   chs(){
-    if(!isTyping){stack[0]=-stack[0];return;}
+    if(!isTyping){stack[0]=-stack[0];stackI[0]=-stackI[0]||0;return;}
     const e=inputStr.indexOf('e');
     if(e<0){inputStr=inputStr.startsWith('-')?inputStr.slice(1):'-'+inputStr;return;}
     // After EEX, CHS changes the sign of the exponent (HP-15C)
@@ -908,58 +1009,91 @@ const A={
     const digits=(inputStr.replace(/[^0-9]/g,'')).length;
     if(digits+3<=13) inputStr+='000';
   },
-  div1000(){ U(x=>x/1000); },
+  div1000(){ U(x=>x/1000,a=>[a[0]/1000,a[1]/1000]); },
   // ENTER: lift stack, duplicate X, then DISABLE lift so next digit replaces X
-  enter(){commit();const x=stack[0];lift();stack[0]=x; liftEnabled=false;},
-  rollDn(){commit();const x=stack[0];drop();stack[SZ-1]=x; liftEnabled=true;},
-  rollUp(){commit();const t=stack[SZ-1];for(let i=SZ-1;i>0;i--)stack[i]=stack[i-1];stack[0]=t; liftEnabled=true;},
-  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]]; liftEnabled=true;},
-  clx(){commit();stack[0]=0; liftEnabled=false;},  // CLx: next digit replaces X
+  enter(){commit();lift(); liftEnabled=false;},  // lift copies X into Y
+  rollDn(){commit();const x=stack[0],xi=stackI[0];drop();stack[SZ-1]=x;stackI[SZ-1]=xi; liftEnabled=true;},
+  rollUp(){commit();const t=stack[SZ-1],ti=stackI[SZ-1];lift();stack[0]=t;stackI[0]=ti; liftEnabled=true;},
+  swap(){commit();[stack[0],stack[1]]=[stack[1],stack[0]];[stackI[0],stackI[1]]=[stackI[1],stackI[0]]; liftEnabled=true;},
+  clx(){commit();stack[0]=0;stackI[0]=0; liftEnabled=false;},  // CLx: next digit replaces X
   // ←: deletes the last digit while typing; once entry is terminated it acts
   // as CLx (HP-15C). Either way, a cleared X is replaced by the next number.
   bksp(){
     if(isTyping){
       inputStr=inputStr.slice(0,-1);
-      if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;liftEnabled=false;}
+      if(!inputStr||inputStr==='-'){inputStr='';isTyping=false;stack[0]=0;stackI[0]=0;liftEnabled=false;}
     }
-    else{stack[0]=0;liftEnabled=false;}
+    else{stack[0]=0;stackI[0]=0;liftEnabled=false;}
   },
-  clrAll(){stack.fill(0);memory=0;memUsed=false;lastX=0;inputStr='';isTyping=false;liftEnabled=true;},
-  lastx(){recallX(lastX);},
-  add(){B((y,x)=>y+x);},sub(){B((y,x)=>y-x);},mul(){B((y,x)=>y*x);},
-  div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;});},
+  // CLR (f ←) clears the stack and Last X but keeps the registers
+  clrAll(){stack.fill(0);stackI.fill(0);lastX=0;lastXI=0;cmode=false;pend=null;inputStr='';isTyping=false;liftEnabled=true;},
+  clrReg(){regRe.fill(0);regIm.fill(0);lastReg=-1;},  // CLR REG (f STO)
+  lastx(){recallX(lastX,lastXI);},
+  add(){B((y,x)=>y+x,C.add);},sub(){B((y,x)=>y-x,C.sub);},mul(){B((y,x)=>y*x,C.mul);},
+  div(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y/x;},C.div);},
   mod(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return y%x;});},
   // Percentage functions leave Y (the base value) in place, as on HP calculators
   pct(){P((y,x)=>y*x/100);},
   dpct(){P((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return(x-y)/y*100;});},
   pctt(){P((y,x)=>{if(y===0){showErr('DIV BY 0');return NaN;}return x/y*100;});},
-  sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);});},
-  sq(){U(x=>x*x);},
-  expx(){U(x=>Math.exp(x));},
-  ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);});},
-  pow10(){U(x=>Math.pow(10,x));},
-  log(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log10(x);});},
-  yx(){B((y,x)=>Math.pow(y,x));},
-  xrty(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return Math.pow(y,1/x);});},
-  recip(){U(x=>{if(x===0){showErr('DIV BY 0');return NaN;}return 1/x;});},
+  // The third argument says when a real input needs the complex version (in
+  // complex mode only); otherwise complex versions run for complex inputs.
+  sqrt(){U(x=>{if(x<0){showErr('DOMAIN');return NaN;}return Math.sqrt(x);},C.sqrt,x=>x<0);},
+  sq(){U(x=>x*x,a=>C.mul(a,a));},
+  expx(){U(x=>Math.exp(x),C.exp);},
+  ln(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log(x);},C.ln,x=>x<0);},
+  pow10(){U(x=>Math.pow(10,x),a=>C.exp(C.mul(a,[Math.LN10,0])));},
+  log(){U(x=>{if(x<=0){showErr('DOMAIN');return NaN;}return Math.log10(x);},a=>C.ln(a).map(v=>v/Math.LN10),x=>x<0);},
+  yx(){B((y,x)=>Math.pow(y,x),C.pow,(y,x)=>y<0&&x!==Math.trunc(x));},
+  xrty(){B((y,x)=>{if(x===0){showErr('DIV BY 0');return NaN;}return Math.pow(y,1/x);},(y,x)=>C.pow(y,C.div([1,0],x)),y=>y<0);},
+  recip(){U(x=>{if(x===0){showErr('DIV BY 0');return NaN;}return 1/x;},a=>C.div([1,0],a));},
   fact(){U(x=>{if(x<0||x!==Math.floor(x)){showErr('DOMAIN');return NaN;}if(x>170){showErr('OVERFLOW');return Infinity;}let r=1;for(let i=2;i<=x;i++)r*=i;return r;});},
-  abs(){U(x=>Math.abs(x));},intg(){U(x=>Math.trunc(x));},frac(){U(x=>x-Math.trunc(x));},
+  abs(){U(x=>Math.abs(x),a=>[C.abs(a),0]);},intg(){U(x=>Math.trunc(x));},frac(){U(x=>x-Math.trunc(x));},
   rnd(){U(x=>parseFloat(x.toPrecision(6)));},
-  sin(){U(x=>Math.sin(toRad(x)));},cos(){U(x=>Math.cos(toRad(x)));},tan(){U(x=>Math.tan(toRad(x)));},
-  asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));});},
-  acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));});},
-  atan(){U(x=>fromRad(Math.atan(x)));},
+  sin(){U(x=>Math.sin(toRad(x)),C.sin);},cos(){U(x=>Math.cos(toRad(x)),C.cos);},tan(){U(x=>Math.tan(toRad(x)),C.tan);},
+  asin(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.asin(x));},C.asin,x=>Math.abs(x)>1);},
+  acos(){U(x=>{if(Math.abs(x)>1){showErr('DOMAIN');return NaN;}return fromRad(Math.acos(x));},C.acos,x=>Math.abs(x)>1);},
+  atan(){U(x=>fromRad(Math.atan(x)),C.atan);},
   // HP-15C register order: →R takes r in X, θ in Y and returns x in X, y in Y;
-  // →P is the inverse (x in X, y in Y → r in X, θ in Y).
-  toRec(){commit();saveLast();const r=stack[0],th=toRad(stack[1]);stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th); liftEnabled=true;},
-  toPol(){commit();saveLast();const x=stack[0],y=stack[1];stack[0]=Math.hypot(x,y);stack[1]=fromRad(Math.atan2(y,x)); liftEnabled=true;},
-  toHrs(){U(x=>{const h=Math.trunc(x);const rem=(x-h)*100;const m=Math.trunc(rem);const s=(rem-m)*100;return h+m/60+s/3600;});},
-  sto(){commit();memory=stack[0];memUsed=true; liftEnabled=true;},
-  rcl(){recallX(memory);},
+  // →P is the inverse (x in X, y in Y → r in X, θ in Y). A complex X is
+  // converted in place instead: x + yi ⇄ r + θi.
+  toRec(){commit();saveLast();
+    if(stackI[0]){const r=stack[0],th=toRad(stackI[0]);setX(clean([r*Math.cos(th),r*Math.sin(th)]));liftEnabled=true;return;}
+    const r=stack[0],th=toRad(stack[1]);stack[0]=r*Math.cos(th);stack[1]=r*Math.sin(th); liftEnabled=true;},
+  toPol(){commit();saveLast();
+    if(stackI[0]){const z=[stack[0],stackI[0]];setX([C.abs(z),fromRad(C.arg(z))]);liftEnabled=true;return;}
+    const x=stack[0],y=stack[1];stack[0]=Math.hypot(x,y);stack[1]=fromRad(Math.atan2(y,x)); liftEnabled=true;},
+  sto(){commit();pend={op:'sto',ar:null};},
+  rcl(){commit();pend={op:'rcl',ar:null};},
+  // i multiplies X by i (7 i is 7i), I combines Y and X into Y + Xi,
+  // Re⇄Im swaps the parts of X. All three switch on complex mode.
+  imag(){commit();saveLast();setX([-stackI[0]||0,stack[0]]);cmode=true;liftEnabled=true;},
+  mkcplx(){commit();saveLast();const z=C.add([stack[1],stackI[1]],[-stackI[0],stack[0]]);drop();setX(clean(z));cmode=true;liftEnabled=true;},
+  reim(){commit();setX([stackI[0],stack[0]]);cmode=true;liftEnabled=true;},
 };
-function B(fn){commit();saveLast();const x=stack[0],y=stack[1];const r=fn(y,x);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;} liftEnabled=true;}
-function U(fn){commit();saveLast();const r=fn(stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}
-function P(fn){commit();saveLast();const r=fn(stack[1],stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}  // like B, but keeps Y
+// Binary (Y, X → X), unary (X → X) and percent (like B, but keeps Y).
+// cfn is the complex version, if any; ext(…) says when a real input needs it.
+function B(fn,cfn,ext){commit();
+  const x=[stack[0],stackI[0]],y=[stack[1],stackI[1]];
+  if(x[1]||y[1]||(cmode&&ext&&ext(y[0],x[0]))){
+    if(!cfn){showErr('REAL ONLY');return;}
+    const r=clean(cfn(y,x));
+    if(!ok(r)){showErr(x[0]||x[1]?'DOMAIN':'DIV BY 0');return;}
+    saveLast();drop();setX(r);liftEnabled=true;return;
+  }
+  saveLast();const r=fn(y[0],x[0]);if(r!==undefined&&!isNaN(r)){drop();stack[0]=r;stackI[0]=0;} liftEnabled=true;}
+function U(fn,cfn,ext){commit();
+  const x=[stack[0],stackI[0]];
+  if(x[1]||(cmode&&ext&&ext(x[0]))){
+    if(!cfn){showErr('REAL ONLY');return;}
+    const r=clean(cfn(x));
+    if(!ok(r)){showErr('DOMAIN');return;}
+    saveLast();setX(r);liftEnabled=true;return;
+  }
+  saveLast();const r=fn(x[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}
+function P(fn){commit();
+  if(stackI[0]||stackI[1]){showErr('REAL ONLY');return;}
+  saveLast();const r=fn(stack[1],stack[0]);if(r!==undefined&&!isNaN(r))stack[0]=r; liftEnabled=true;}
 
 function handleKey(k){
   if(trainerBlocksKeys())return;
@@ -972,7 +1106,7 @@ function handleKey(k){
   // the label on the keypad for this press, kept for the trainer's review card
   const lbl=isShift?{t:k.main,c:k.fn==='shiftF'?'f':'g'}
     :fn===k.fFn&&fn!==k.fn?{t:k.gold,c:'f'}:fn===k.gFn&&fn!==k.fn?{t:k.blue,c:'g'}:{t:k.main,c:''};
-  if(fn&&A[fn])A[fn]();
+  if(fn)exec(fn);
   render();
   if(tr.playing)trainerAfterKey(fn,1,[lbl]);  // one keypad press
 }
@@ -985,14 +1119,14 @@ document.addEventListener('keydown',e=>{
     '5':'d5','6':'d6','7':'d7','8':'d8','9':'d9',
     '.':'dot','e':'eex','E':'eex','s':'sin','c':'cos',
     't':'tan','l':'ln','L':'log','p':'pi','q':'sqrt',
-    'r':'rollDn','x':'swap','n':'chs','a':'abs',};
+    'r':'rollDn','x':'swap','n':'chs','a':'abs','i':'imag',};
   if(map[e.key]){
     e.preventDefault();
     if(trainerBlocksKeys())return;
     const fn=map[e.key];
     clearErr();
     if(A[fn]){
-      A[fn]();render();
+      exec(fn);render();
       // a shortcut costs what the same function costs on the keypad
       if(tr.playing)trainerAfterKey(fn,trPress(fn).length,trLabels(fn));
     }
@@ -1006,7 +1140,7 @@ document.addEventListener('keydown',e=>{
 // Keystroke par ('par'): PAR_SET formulas, no clock, fewest keystrokes.
 // A formula passes when X matches its value. Every number keyed in must
 // appear in the formula, so typing the answer straight in doesn't count.
-// CLR ALL restarts the current formula (and in par mode, its key count).
+// CLR (f ←) restarts the current formula (and in par mode, its key count).
 const CD_SECS=60,PAR_SET=10,SKIP_PENALTY=5;
 // secs: countdown length where it isn't CD_SECS
 const TR_LEVELS=[
@@ -1027,6 +1161,9 @@ const TR_LEVELS=[
   {name:'MASTER',    hint:'a bit of everything',secs:90},
 ];
 // Countdown stars: formulas solved for ★ / ★★ / ★★★, per level
+// Levels whose par routes use a key that changed cost in keypad layout 2
+// (√x, x!, LSTx, STO/RCL); see the reset next to trSaveBest
+const TR_RESET_LEVELS=[4,5,13,14,15];
 const TR_CD_STARS=[[4,8,12],[3,6,9],[3,6,9],[3,5,8],[2,4,6],
   [3,6,9],[3,5,8],[3,5,8],[3,5,8],[3,6,9],[3,5,8],[3,5,8],[2,4,6],[3,5,8],[2,3,5]];
 
@@ -1065,7 +1202,7 @@ const T=(f,tip,more)=>trWith(f,Object.assign({tip},more));
 const TIP_ENTER='ENTER separates two numbers you key in a row; the operation goes last.';
 const TIP_ROOT='x√y is f yˣ: the number, ENTER, the root, then f x√y.';
 const TIP_EEX='EEX starts the exponent: 3.2 EEX 5 is 3.2×10⁵. For a negative exponent, press CHS after its digits.';
-const TIP_STO='After STO, x is still in X: use it straight away instead of the first RCL.';
+const TIP_STO='After STO 0, x is still in X: use it straight away instead of the first RCL 0.';
 const TIP_LOGB='log a ÷ log b is the logarithm of a in base b (ln works the same way).';
 const TR_GEN=[
   [ // 1 BASICS
@@ -1093,11 +1230,11 @@ const TR_GEN=[
     ()=>{const a=ri(12,40);return T(trB('mul',trB('sub',trN(a),trN(ri(2,a-3))),trN(ri(2,9))),'Brackets first; then the last number needs no ENTER.');},
   ],
   [ // 4 FUNCTIONS
-    ()=>{const k=ri(2,12);return T(trB('add',trU('sqrt',trN(k*k)),trN(ri(2,20))),'√x is f x². Functions act on X straight away and end the entry.');},
+    ()=>{const k=ri(2,12);return T(trB('add',trU('sqrt',trN(k*k)),trN(ri(2,20))),'Functions act on X straight away and end the entry.');},
     ()=>T(trU('sq',trB('add',trN(ri(2,9)),trN(ri(2,9)))),'Add first, then x² squares the result.'),
     ()=>T(trB('add',trU('recip',trN(pick([2,4,5,8]))),trU('recip',trN(pick([2,4,5,8,10])))),'1/x ends the entry, so the second number needs no ENTER.'),
     ()=>T(trB('mul',trU('log',trN(pick([100,1000,10000]))),trN(ri(2,9))),'The 000 key types three zeros at once: 1 000 is 1000.'),
-    ()=>T(trB('sub',trU('fact',trN(ri(4,7))),trN(ri(2,20))),'x! acts on X; then key the other number and −.'),
+    ()=>T(trB('sub',trU('fact',trN(ri(4,7))),trN(ri(2,20))),'x! is f ×; it acts on X. Then key the other number and −.'),
     ()=>{const fn=pick(['sin','cos']);return T(trB('mul',trU(fn,trN(fn==='sin'?30:60)),trN(2*ri(2,20))),
       'Trig works in degrees here: key the angle, then '+fn.toUpperCase()+'.');},
   ],
@@ -1165,8 +1302,8 @@ const TR_GEN=[
         return T(trB('subpct',trN(a),trN(p)),'% leaves the base in Y, so − takes the percentage off, like a discount.',
           {route:D(a).concat('enter',D(p),'pct','sub')});},
     ()=>{const a=20*ri(1,10),k=5*pick([-9,-8,-6,-5,-4,-2,-1,1,2,4,5,6,8,10,12,15,20]);
-        return T(trB('dpct',trN(a),trN(a+a*k/100)),'Δ% is g LOG: old value, ENTER, new value, then g Δ%.');},
-    ()=>{const a=20*ri(1,20);return T(trB('pctt',trN(a),trN(a*5*ri(1,19)/100)),'%T is g yˣ: total, ENTER, part, then g %T.');},
+        return T(trB('dpct',trN(a),trN(a+a*k/100)),'Δ% is f %: old value, ENTER, new value, then f Δ%.');},
+    ()=>{const a=20*ri(1,20);return T(trB('pctt',trN(a),trN(a*5*ri(1,19)/100)),'%T is g %: total, ENTER, part, then g %T.');},
   ],
   [ // 12 EEX
     ()=>T(trB('mul',trE(trMant(),ri(3,8)),trE(trMant(),-ri(2,5))),TIP_EEX),
@@ -1179,19 +1316,19 @@ const TR_GEN=[
     ()=>{const x=trXv(),a=ri(2,5),b=ri(2,9),c=ri(2,20);
         return T(trB('add',trB('add',trB('mul',trN(a),trU('sq',trX(x))),trB('mul',trN(b),trX(x))),trN(c)),
           'Horner’s trick: ax² + bx + c = (a·x + b)·x + c, so no x² is needed. And after STO, x is still in X.',
-          {mem:x,birdie:D(x).concat('sto',D(a),'mul',D(b),'add','rcl','mul',D(c),'add')});},
+          {mem:x,birdie:D(x).concat('sto','d0',D(a),'mul',D(b),'add','rcl','d0','mul',D(c),'add')});},
     ()=>{const x=trXv(),b=ri(2,9);
         return T(trB('sub',trU('sq',trX(x)),trB('mul',trN(b),trX(x))),
           'x² − bx = x·(x − b): ENTER ENTER keeps two copies of x, so memory isn’t needed at all.',
           {mem:x,birdie:D(x).concat('enter','enter',D(b),'sub','mul')});},
     ()=>{const x=trXv(),a=ri(2,9),b=ri(2,9);
         return T(trB('mul',trB('add',trX(x),trN(a)),trB('sub',trX(x),trN(b))),TIP_STO,
-          {mem:x,birdie:D(x).concat('sto',D(a),'add','rcl',D(b),'sub','mul')});},
+          {mem:x,birdie:D(x).concat('sto','d0',D(a),'add','rcl','d0',D(b),'sub','mul')});},
     ()=>{const x=trXv();
-        return T(trB('add',trB('pow',trX(x),trN(3)),trX(x)),TIP_STO,{mem:x,birdie:D(x).concat('sto','d3','yx','rcl','add')});},
+        return T(trB('add',trB('pow',trX(x),trN(3)),trX(x)),TIP_STO,{mem:x,birdie:D(x).concat('sto','d0','d3','yx','rcl','d0','add')});},
     ()=>{const x=trXv(),a=ri(2,9),b=ri(2,9);
         return T(trB('div',trB('mul',trN(a),trX(x)),trB('add',trX(x),trN(b))),TIP_STO,
-          {mem:x,birdie:D(x).concat('sto',D(a),'mul','rcl',D(b),'add','div')});},
+          {mem:x,birdie:D(x).concat('sto','d0',D(a),'mul','rcl','d0',D(b),'add','div')});},
   ],
   [ // 14 LAST X: reuse a value with ENTER ENTER or LSTx instead of retyping it
     ()=>{const a=ri(11,49),b=ri(11,49);
@@ -1201,12 +1338,12 @@ const TR_GEN=[
         return T(trB('mul',trN(a),trB('sub',trN(a),trN(b))),'ENTER ENTER keeps two copies of a: one for the bracket, one for the ×.',
           {route:D(a).concat('enter','enter',D(b),'sub','mul')});},
     ()=>{const a=ri(11,99),b=ri(101,999);
-        return T(trB('div',trB('add',trN(a),trN(b)),trN(b)),'LSTx (g ENTER) brings back b, the last X before the +, so you don’t retype it.',
+        return T(trB('div',trB('add',trN(a),trN(b)),trN(b)),'LSTx brings back b, the last X before the +, so you don’t retype it.',
           {route:D(a).concat('enter',D(b),'add','lastx','div')});},
     ()=>{const a=ri(101,999);
-        return T(trB('add',trU('sq',trN(a)),trN(a)),'LSTx (g ENTER) brings back a, the X before x².',{route:D(a).concat('sq','lastx','add')});},
+        return T(trB('add',trU('sq',trN(a)),trN(a)),'LSTx brings back a, the X before x².',{route:D(a).concat('sq','lastx','add')});},
     ()=>{const b=ri(101,499),a=b+ri(100,500);
-        return T(trB('mul',trB('sub',trN(a),trN(b)),trN(b)),'LSTx (g ENTER) brings back b, the X before the −.',
+        return T(trB('mul',trB('sub',trN(a),trN(b)),trN(b)),'LSTx brings back b, the X before the −.',
           {route:D(a).concat('enter',D(b),'sub','lastx','mul')});},
   ],
   [ // 15 MASTER
@@ -1285,13 +1422,13 @@ function trAllowed(f){
 // Run keystrokes on the real calculator engine and return X, leaving the
 // calculator as it was.
 function trSim(seq){
-  const keep={stack:stack.slice(),inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled};
+  const keep=calcState();
   const playing=tr.playing,err=showErr;
   tr.playing=false;showErr=()=>{};
-  A.clrAll();angleMode='DEG';
+  A.clrAll();A.clrReg();angleMode='DEG';
   let x=NaN;
-  try{for(const fn of seq)A[fn]();commit();x=stack[0];}catch(e){}
-  ({stack,inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled}=keep);
+  try{for(const fn of seq)exec(fn);commit();x=stackI[0]?NaN:stack[0];}catch(e){}
+  setCalcState(keep);
   tr.playing=playing;showErr=err;
   return x;
 }
@@ -1399,7 +1536,7 @@ function trNumKeys(n){
 function trRoute(n,afterNum){
   if(n.t==='n')return (afterNum?['enter']:[]).concat(trNumKeys(n));
   if(n.t==='c')return [TR_CFN[n.k]];
-  if(n.t==='v')return ['rcl'];
+  if(n.t==='v')return ['rcl','d0'];
   if(n.t==='u')return trRoute(n.a,afterNum).concat(TR_OPFN[n.op]);
   const op=TR_OPFN[n.op],comm=n.op==='add'||n.op==='mul';
   const ab=trRoute(n.a,afterNum).concat(trRoute(n.b,n.a.t==='n'),op);
@@ -1409,7 +1546,7 @@ function trRoute(n,afterNum){
 function trParRoute(f){
   if(f.route)return f.route;
   const r=trRoute(f,false);
-  return f.mem===undefined?r:trDigits(f.mem).concat('sto',r);
+  return f.mem===undefined?r:trDigits(f.mem).concat('sto','d0',r);
 }
 
 // ── Sounds & flashes ──
@@ -1440,6 +1577,15 @@ function trLoadBest(){
   return {cd:{},par:{}};
 }
 function trSaveBest(b){try{localStorage.setItem('rpnTrainerBest',JSON.stringify(b));}catch(e){}}
+// Keypad layout 2 gave √x and LSTx their own keys, moved x! to f ×, and made
+// STO/RCL take a register digit, which changed par on these levels: their
+// keystroke-par bests start again (once).
+try{
+  if(localStorage.getItem('rpnTrainerLayout')!=='2'){
+    const b=trLoadBest();TR_RESET_LEVELS.forEach(l=>delete b.par[l]);trSaveBest(b);
+    localStorage.setItem('rpnTrainerLayout','2');
+  }
+}catch(e){}
 function trStars(mode,level,score){
   if(mode==='cd'){const s=TR_CD_STARS[level-1];return score>=s[2]?3:score>=s[1]?2:score>=s[0]?1:0;}
   return score<=0?3:score<=4?2:1;  // par: strokes over par for the set
@@ -1452,7 +1598,7 @@ function trainerButton(){if(tr.retry)trRetryDone();else if(tr.on)trainerClose();
 function trainerOpen(){
   trStop();
   if(!tr.on){
-    tr.saved={stack:stack.slice(),inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled};
+    tr.saved=calcState();
     tr.on=true;
   }
   tr.playing=false;
@@ -1466,8 +1612,8 @@ function trainerPickMode(m){
   document.getElementById('trmCd').classList.toggle('sel',m==='cd');
   document.getElementById('trmPar').classList.toggle('sel',m==='par');
   document.getElementById('trmNote').textContent=m==='cd'
-    ?'Key each formula in RPN until X shows its value. Use only the numbers in the formula; the π and e keys are fine. CLR ALL starts a formula over; SKIP moves on.'
-    :'Par is the keystroke count of a standard RPN route; f and g count as a press. CLR ALL restarts a formula and its count. Beat par for a birdie. SKIP costs par + '+SKIP_PENALTY+'.';
+    ?'Key each formula in RPN until X shows its value. Use only the numbers in the formula; the π and e keys are fine. f CLR starts a formula over; SKIP moves on.'
+    :'Par is the keystroke count of a standard RPN route; f and g count as a press. f CLR restarts a formula and its count. Beat par for a birdie. SKIP costs par + '+SKIP_PENALTY+'.';
   const best=trLoadBest()[m],box=document.getElementById('trmLevels');
   box.innerHTML='';
   TR_LEVELS.forEach((L,i)=>{
@@ -1491,7 +1637,7 @@ function trainerClose(){
   document.getElementById('trSkip').textContent='SKIP';
   tr.retry=null;
   document.getElementById('trainBtn').textContent='PRACTICE';
-  if(tr.saved)({stack,inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled}=tr.saved);
+  if(tr.saved)setCalcState(tr.saved);
   tr.saved=null;tr.on=false;tr.playing=false;
   render();
 }
@@ -1525,7 +1671,7 @@ function trLoad(f){
   tr.route=trParRoute(f);
   tr.par=trCost(tr.route);
   tr.keys=0;tr.seq=[];tr.tries=1;tr.tainted=false;tr.msg='';tr.busy=false;
-  A.clrAll();shiftMode=0;
+  A.clrAll();A.clrReg();shiftMode=0;
   render();trUpdate();
 }
 function trUpdate(){
@@ -1562,7 +1708,7 @@ function trainerOnEntry(v){
   if(tr.allowed.some(a=>trSame(Math.abs(v),a)))return;
   tr.tainted=true;
   trSound('bad');trFlash('flash-bad');
-  trSay(fmt(v)+' NOT IN FORMULA · CLR ALL','bad');
+  trSay(fmt(v)+' NOT IN FORMULA · f CLR','bad');
 }
 // After every key: count it, then check whether X holds the answer
 function trainerAfterKey(fn,cost,labels){
