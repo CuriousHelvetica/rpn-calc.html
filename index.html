@@ -423,7 +423,28 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
 .trr-chips span{font-size:10px;border:1px solid #333;border-radius:3px;padding:2px 5px;color:#aaa;}
 .trr-chips .under{color:#66dd66;border-color:#2a5a2a;}
 .trr-chips .over{color:#ff9050;border-color:#5a3a2a;}
+.trr-chips span{cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.trr-chips span:active{background:#2a2a2a;}
+.trr-hint{font-size:9px;letter-spacing:1px;color:#666;}
 .trr-btns{display:flex;gap:8px;margin-top:4px;}
+.tr-btn.off{opacity:.25;pointer-events:none;}
+.trv-box{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+/* centred while it fits; if it ever overflows, it scrolls from the top */
+.trv-box>:first-child{margin-top:auto;}
+.trv-box>:last-child{margin-bottom:auto;}
+.trv-box .trr-btns{justify-content:center;}
+.trv-formula{font-size:18px;font-weight:bold;color:#b8f0a0;white-space:pre-line;}
+.trv-rows{display:flex;flex-direction:column;gap:6px;}
+.trv-row{display:flex;gap:10px;align-items:flex-start;}
+.trv-row .lbl{width:64px;flex-shrink:0;font-size:9px;line-height:1.3;letter-spacing:1px;color:#888;}
+.trv-row.over .lbl{color:#ff9050;}
+.trv-row.under .lbl{color:#66dd66;}
+.trv-row .keys{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:3px;}
+.kc{font-size:10px;line-height:1;padding:3px 5px;border:1px solid #3a3a3a;border-radius:3px;background:#202020;color:#ddd;white-space:nowrap;}
+.kc.f{color:#ffcc00;}
+.kc.g{color:#55ddff;}
+.trv-tip{font-size:11px;line-height:1.4;color:#bbb;border-left:2px solid #ffcc00;padding-left:8px;}
+.trv-tip:empty{display:none;}
 
 .light .train-btn,.light .tr-skip{color:#445533;border-color:#778866;}
 .light .tr-panel{border-bottom-color:#b8c8a8;}
@@ -444,6 +465,15 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
 .light .trr-chips span{border-color:#a8a8a8;color:#444;}
 .light .trr-chips .under{color:#228822;}
 .light .trr-chips .over{color:#bb5500;}
+.light .trr-hint{color:#666;}
+.light .trv-formula{color:#223311;}
+.light .trv-row .lbl{color:#555;}
+.light .trv-row.over .lbl{color:#bb5500;}
+.light .trv-row.under .lbl{color:#228822;}
+.light .kc{background:#e8e8e8;border-color:#a8a8a8;color:#111;}
+.light .kc.f{color:#aa6600;}
+.light .kc.g{color:#0066bb;}
+.light .trv-tip{color:#333;border-left-color:#aa6600;}
 </style>
 </head>
 <body>
@@ -466,7 +496,7 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
     <div class="tr-panel">
       <div class="tr-top"><span id="trProg"></span><span class="tr-meter" id="trMeter"></span></div>
       <div class="tr-formula" id="trFormula"></div>
-      <div class="tr-bot"><span class="tr-status" id="trStatus"></span><span class="tr-skip" onclick="trainerSkip()">SKIP</span></div>
+      <div class="tr-bot"><span class="tr-status" id="trStatus"></span><span class="tr-skip" id="trSkip" onclick="trainerSkip()">SKIP</span></div>
     </div>
     <div class="stack-rows" id="stackRows"></div>
     <div class="disp-footer">
@@ -506,10 +536,26 @@ body.light{ background:#c8c8c8; }  /* .light is set on <body> itself */
       <div class="trr-score" id="trrScore"></div>
       <div class="trr-line" id="trrLine"></div>
       <div class="trr-chips" id="trrChips"></div>
+      <div class="trr-hint" id="trrHint"></div>
       <div class="trr-btns">
         <div class="tr-btn" onclick="trainerStart(tr.level)">AGAIN</div>
         <div class="tr-btn" onclick="trainerOpen()">LEVELS</div>
         <div class="tr-btn" onclick="trainerClose()">EXIT</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tr-ov" id="trReview">
+    <div class="trv-box">
+      <div class="trr-head" id="trvHead"></div>
+      <div class="trv-formula" id="trvFormula"></div>
+      <div class="trv-rows" id="trvRows"></div>
+      <div class="trv-tip" id="trvTip"></div>
+      <div class="trr-btns">
+        <div class="tr-btn" id="trvPrev" onclick="trainerReview(tr.rv-1)">‹</div>
+        <div class="tr-btn" onclick="trainerRetry()">TRY AGAIN</div>
+        <div class="tr-btn" onclick="trainerReviewClose()">RESULTS</div>
+        <div class="tr-btn" id="trvNext" onclick="trainerReview(tr.rv+1)">›</div>
       </div>
     </div>
   </div>
@@ -919,9 +965,12 @@ function handleKey(k){
   if(shiftMode===1&&!isShift){fn=k.fFn||k.fn;shiftMode=0;}
   else if(shiftMode===2&&!isShift){fn=k.gFn||k.fn;shiftMode=0;}
   else fn=k.fn;
+  // the label on the keypad for this press, kept for the trainer's review card
+  const lbl=isShift?{t:k.main,c:k.fn==='shiftF'?'f':'g'}
+    :fn===k.fFn&&fn!==k.fn?{t:k.gold,c:'f'}:fn===k.gFn&&fn!==k.fn?{t:k.blue,c:'g'}:{t:k.main,c:''};
   if(fn&&A[fn])A[fn]();
   render();
-  if(tr.playing)trainerAfterKey(fn,1);  // one keypad press
+  if(tr.playing)trainerAfterKey(fn,1,[lbl]);  // one keypad press
 }
 
 // Keyboard (desktop testing)
@@ -941,7 +990,7 @@ document.addEventListener('keydown',e=>{
     if(A[fn]){
       A[fn]();render();
       // a shortcut costs what the same function costs on the keypad
-      if(tr.playing)trainerAfterKey(fn,trPress(fn).length);
+      if(tr.playing)trainerAfterKey(fn,trPress(fn).length,trLabels(fn));
     }
   }
 });
@@ -979,7 +1028,8 @@ const TR_CD_STARS=[[4,8,12],[3,6,9],[3,6,9],[3,5,8],[2,4,6],
 
 const tr={
   on:false,playing:false,busy:false,mode:'cd',level:1,
-  f:null,ans:0,allowed:[],keys:0,par:0,tries:1,tainted:false,msg:'',msgCls:'',
+  f:null,ans:0,allowed:[],route:[],keys:0,seq:[],par:0,tries:1,tainted:false,msg:'',msgCls:'',
+  retry:null,rv:0,  // retry: the result being retried from the review card (rv)
   solved:0,n:0,results:[],endAt:0,lastSec:0,timer:null,pending:null,saved:null,
 };
 try{if(localStorage.getItem('rpnTrainerMode')==='par')tr.mode='par';}catch(e){}
@@ -1004,122 +1054,170 @@ const TR_PCTS=[5,10,15,20,25,30,40,60,75];
 const trMant=()=>{if(Math.random()<.5)return ri(2,9);const r=ri(11,98);return (r%10?r:r+1)/10;};
 const trXv=()=>{if(Math.random()<.5)return ri(11,29);const r=ri(11,49);return (r%10?r:r+1)/10;};
 
+// Every formula carries a tip for the review card, and some a birdie: a
+// shorter route than par, found by rewriting the maths (checked by trFair).
+const D=n=>trDigits(n);
+const T=(f,tip,more)=>trWith(f,Object.assign({tip},more));
+const TIP_ENTER='ENTER separates two numbers you key in a row; the operation goes last.';
+const TIP_ROOT='x√y is f yˣ: the number, ENTER, the root, then f x√y.';
+const TIP_EEX='EEX starts the exponent: 3.2 EEX 5 is 3.2×10⁵. For a negative exponent, press CHS after its digits.';
+const TIP_STO='After STO, x is still in X: use it straight away instead of the first RCL.';
+const TIP_LOGB='log a ÷ log b is the logarithm of a in base b (ln works the same way).';
 const TR_GEN=[
   [ // 1 BASICS
-    ()=>trB('add',trN(ri(2,49)),trN(ri(2,49))),
-    ()=>trB('mul',trN(ri(2,12)),trN(ri(2,12))),
-    ()=>trB('add',trB('add',trN(ri(2,30)),trN(ri(2,30))),trN(ri(2,30))),
+    ()=>T(trB('add',trN(ri(2,49)),trN(ri(2,49))),TIP_ENTER),
+    ()=>T(trB('mul',trN(ri(2,12)),trN(ri(2,12))),TIP_ENTER),
+    ()=>T(trB('add',trB('add',trN(ri(2,30)),trN(ri(2,30))),trN(ri(2,30))),
+      'After +, key the next number straight away: an operation ends the entry, so no ENTER is needed.'),
   ],
   [ // 2 BRACKETS
-    ()=>trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trN(ri(2,9))),
-    ()=>trB('mul',trN(ri(2,9)),trB('add',trN(ri(2,15)),trN(ri(2,15)))),
-    ()=>trB('add',trB('mul',trN(ri(2,12)),trN(ri(2,12))),trN(ri(2,30))),
-    ()=>trB('add',trN(ri(2,30)),trB('mul',trN(ri(2,12)),trN(ri(2,12)))),
+    ()=>T(trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trN(ri(2,9))),
+      'Brackets first. The result sits in X, so the next number needs no ENTER.'),
+    ()=>T(trB('mul',trN(ri(2,9)),trB('add',trN(ri(2,15)),trN(ri(2,15)))),
+      'Start with the brackets even though they come second: × works either way round, and it saves an ENTER.'),
+    ()=>T(trB('add',trB('mul',trN(ri(2,12)),trN(ri(2,12))),trN(ri(2,30))),'× before +: multiply, then key the last number and +.'),
+    ()=>T(trB('add',trN(ri(2,30)),trB('mul',trN(ri(2,12)),trN(ri(2,12)))),
+      '× before +: do the product first, then key the first number and +. Starting with it costs an extra ENTER.'),
   ],
   [ // 3 ORDER
-    ()=>{const a=ri(12,90);return trB('sub',trN(a),trN(ri(2,a-3)));},
-    ()=>{const b=ri(2,12);return trB('div',trN(b*ri(2,12)),trN(b));},
-    ()=>trB('pow',trN(ri(2,6)),trN(ri(2,4))),
-    ()=>trB('sub',trN(ri(45,99)),trB('add',trN(ri(2,20)),trN(ri(2,20)))),
-    ()=>{const a=ri(12,40);return trB('mul',trB('sub',trN(a),trN(ri(2,a-3))),trN(ri(2,9)));},
+    ()=>{const a=ri(12,90);return T(trB('sub',trN(a),trN(ri(2,a-3))),'Order matters: the first number goes to Y, the second to X, and − gives Y − X.');},
+    ()=>{const b=ri(2,12);return T(trB('div',trN(b*ri(2,12)),trN(b)),'Order matters: ÷ gives Y ÷ X, so key the number being divided first.');},
+    ()=>T(trB('pow',trN(ri(2,6)),trN(ri(2,4))),'yˣ raises Y to the power X: base, ENTER, exponent, yˣ.'),
+    ()=>{const c=ri(45,99),a=ri(2,20),b=ri(2,20);
+        return T(trB('sub',trN(c),trB('add',trN(a),trN(b))),'c − (a + b) is c − a − b, so you can subtract the numbers one at a time.',
+          {birdie:D(c).concat('enter',D(a),'sub',D(b),'sub')});},
+    ()=>{const a=ri(12,40);return T(trB('mul',trB('sub',trN(a),trN(ri(2,a-3))),trN(ri(2,9))),'Brackets first; then the last number needs no ENTER.');},
   ],
   [ // 4 FUNCTIONS
-    ()=>{const k=ri(2,12);return trB('add',trU('sqrt',trN(k*k)),trN(ri(2,20)));},
-    ()=>trU('sq',trB('add',trN(ri(2,9)),trN(ri(2,9)))),
-    ()=>trB('add',trU('recip',trN(pick([2,4,5,8]))),trU('recip',trN(pick([2,4,5,8,10])))),
-    ()=>trB('mul',trU('log',trN(pick([100,1000,10000]))),trN(ri(2,9))),
-    ()=>trB('sub',trU('fact',trN(ri(4,7))),trN(ri(2,20))),
-    ()=>{const fn=pick(['sin','cos']);return trB('mul',trU(fn,trN(fn==='sin'?30:60)),trN(2*ri(2,20)));},
+    ()=>{const k=ri(2,12);return T(trB('add',trU('sqrt',trN(k*k)),trN(ri(2,20))),'√x is f x². Functions act on X straight away and end the entry.');},
+    ()=>T(trU('sq',trB('add',trN(ri(2,9)),trN(ri(2,9)))),'Add first, then x² squares the result.'),
+    ()=>T(trB('add',trU('recip',trN(pick([2,4,5,8]))),trU('recip',trN(pick([2,4,5,8,10])))),'1/x ends the entry, so the second number needs no ENTER.'),
+    ()=>T(trB('mul',trU('log',trN(pick([100,1000,10000]))),trN(ri(2,9))),'The 000 key types three zeros at once: 1 000 is 1000.'),
+    ()=>T(trB('sub',trU('fact',trN(ri(4,7))),trN(ri(2,20))),'x! acts on X; then key the other number and −.'),
+    ()=>{const fn=pick(['sin','cos']);return T(trB('mul',trU(fn,trN(fn==='sin'?30:60)),trN(2*ri(2,20))),
+      'Trig works in degrees here: key the angle, then '+fn.toUpperCase()+'.');},
   ],
   [ // 5 NESTED
-    ()=>{const c=ri(10,20);return trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trB('sub',trN(c),trN(ri(2,c-2))));},
-    ()=>{const b=ri(2,9),c=ri(2,9);return trB('div',trN((b+c)*ri(2,9)),trB('add',trN(b),trN(c)));},
+    ()=>{const c=ri(10,20);return T(trB('mul',trB('add',trN(ri(2,15)),trN(ri(2,15))),trB('sub',trN(c),trN(ri(2,c-2)))),
+      'One bracket, then the other: the first result waits in Y.');},
+    ()=>{const b=ri(2,9),c=ri(2,9);return T(trB('div',trN((b+c)*ri(2,9)),trB('add',trN(b),trN(c))),
+      'Key the number being divided first and let the stack hold it while you add.');},
     ()=>{const p=pick([[3,4],[5,12],[6,8],[8,15],[7,24],[9,12],[12,16],[20,21]]);if(Math.random()<.5)p.reverse();
-        return trU('sqrt',trB('add',trU('sq',trN(p[0])),trU('sq',trN(p[1]))));},
+        return T(trU('sqrt',trB('add',trU('sq',trN(p[0])),trU('sq',trN(p[1])))),
+          '→P (g COS) turns x and y into the distance √(x² + y²) in one go.',{birdie:D(p[0]).concat('enter',D(p[1]),'toPol')});},
     ()=>{const d=ri(2,6),c=ri(d+2,d+20),s=d*ri(2,9),a=ri(2,s-2);
-        return trB('div',trB('add',trN(a),trN(s-a)),trB('sub',trN(c),trN(c-d)));},
-    ()=>trB('sub',trN(ri(50,150)),trB('mul',trN(ri(2,6)),trB('add',trN(ri(2,9)),trN(ri(2,9))))),
+        return T(trB('div',trB('add',trN(a),trN(s-a)),trB('sub',trN(c),trN(c-d))),'Each bracket in turn, then ÷: the first result waits in Y.');},
+    ()=>T(trB('sub',trN(ri(50,150)),trB('mul',trN(ri(2,6)),trB('add',trN(ri(2,9)),trN(ri(2,9))))),
+      'Innermost first. Then key the first number and x⇄y, so − subtracts in the right order.'),
   ],
   [ // 6 NEGATIVES
-    ()=>trB('add',trB('mul',trN(-ri(2,12)),trN(ri(2,9))),trN(ri(20,99))),
-    ()=>trB('sub',trN(ri(5,40)),trN(-ri(2,30))),
-    ()=>trB('mul',trN(ri(2,12)),trN(-ri(2,12))),
-    ()=>trU('sq',trN(-ri(2,15))),
-    ()=>trB('add',trN(-ri(20,60)),trN(ri(2,19))),
-    ()=>{const b=ri(2,9);return trB('div',trN(-b*ri(2,12)),trN(b));},
+    ()=>T(trB('add',trB('mul',trN(-ri(2,12)),trN(ri(2,9))),trN(ri(20,99))),'CHS right after the digits makes the number negative while you type.'),
+    ()=>{const a=ri(5,40),b=ri(2,30);return T(trB('sub',trN(a),trN(-b)),
+      'Subtracting a negative is adding: skip the CHS and use +.',{birdie:D(a).concat('enter',D(b),'add')});},
+    ()=>T(trB('mul',trN(ri(2,12)),trN(-ri(2,12))),'CHS can go on the number or on the result: the same number of keys.'),
+    ()=>{const a=ri(2,15);return T(trU('sq',trN(-a)),
+      'A square is never negative: (−a)² = a², so the CHS isn’t needed.',{birdie:D(a).concat('sq')});},
+    ()=>{const a=ri(20,60),b=ri(2,19);return T(trB('add',trN(-a),trN(b)),
+      '−a + b is b − a: key b first and subtract, no CHS.',{birdie:D(b).concat('enter',D(a),'sub')});},
+    ()=>{const b=ri(2,9);return T(trB('div',trN(-b*ri(2,12)),trN(b)),'CHS works while typing, or afterwards on a result.');},
   ],
   [ // 7 POWERS
-    ()=>trB('add',trB('xrty',trN(ri(2,6)**3),trN(3)),trB('pow',trN(ri(2,3)),trN(ri(4,7)))),
-    ()=>trB('mul',trB('xrty',trN(ri(2,5)**4),trN(4)),trN(ri(2,9))),
-    ()=>trB('add',trB('xrty',trN(ri(2,4)**5),trN(5)),trN(ri(2,30))),
-    ()=>trB('sub',trB('pow',trN(ri(2,3)),trN(ri(6,10))),trN(ri(2,50))),
-    ()=>trB('add',trB('pow',trN(ri(2,6)),trN(3)),trU('sq',trN(ri(2,12)))),
+    ()=>T(trB('add',trB('xrty',trN(ri(2,6)**3),trN(3)),trB('pow',trN(ri(2,3)),trN(ri(4,7)))),TIP_ROOT),
+    ()=>T(trB('mul',trB('xrty',trN(ri(2,5)**4),trN(4)),trN(ri(2,9))),TIP_ROOT),
+    ()=>T(trB('add',trB('xrty',trN(ri(2,4)**5),trN(5)),trN(ri(2,30))),TIP_ROOT),
+    ()=>T(trB('sub',trB('pow',trN(ri(2,3)),trN(ri(6,10))),trN(ri(2,50))),'yˣ: base, ENTER, exponent, yˣ; then the last number and −.'),
+    ()=>T(trB('add',trB('pow',trN(ri(2,6)),trN(3)),trU('sq',trN(ri(2,12)))),'For squares use x²: one key instead of 2 yˣ.'),
   ],
   [ // 8 LOGS
-    ()=>trB('add',trU('log',trN(10**ri(2,4))),trU('pow10',trN(ri(2,3)))),
-    ()=>trB('mul',trU('expx',trN(ri(2,4))),trN(ri(2,9))),
-    ()=>trB('add',trU('ln',trN(ri(2,20))),trU('ln',trN(ri(2,20)))),
-    ()=>{const b=ri(2,5);return trB('div',trU('log',trN(b**ri(3,6))),trU('log',trN(b)));},
-    ()=>trU('ln',trB('mul',trN(ri(2,12)),trN(ri(2,12)))),
+    ()=>T(trB('add',trU('log',trN(10**ri(2,4))),trU('pow10',trN(ri(2,3)))),'10ˣ is f LOG: 2 f 10ˣ is shorter than 10 ENTER 2 yˣ.'),
+    ()=>T(trB('mul',trU('expx',trN(ri(2,4))),trN(ri(2,9))),'eˣ is f LN: key the exponent, then f eˣ.'),
+    ()=>T(trB('add',trU('ln',trN(ri(2,20))),trU('ln',trN(ri(2,20)))),'LN ends the entry, so the second number needs no ENTER.'),
+    ()=>{const b=ri(2,5);return T(trB('div',trU('log',trN(b**ri(3,6))),trU('log',trN(b))),TIP_LOGB);},
+    ()=>T(trU('ln',trB('mul',trN(ri(2,12)),trN(ri(2,12)))),'Multiply first, then LN.'),
   ],
   [ // 9 TRIG
     ()=>{const [fn,v]=pick([['asin',0.5],['acos',0.5],['atan',1]]);
-        return Math.random()<.5?trB('add',trU(fn,trN(v)),trN(ri(2,40))):trB('mul',trU(fn,trN(v)),trN(ri(2,9)));},
-    ()=>trB('mul',trN(ri(2,50)),trU('tan',trN(pick([30,60])))),
-    ()=>{const a=pick([10,20,25,35,40,50,55,65,70,80]);return trB('div',trU('sin',trN(a)),trU('cos',trN(a)));},
-    ()=>trB('add',trB('mul',trN(2*ri(2,20)),trU('cos',trN(60))),trB('mul',trN(2*ri(2,20)),trU('sin',trN(30)))),
+        const f=Math.random()<.5?trB('add',trU(fn,trN(v)),trN(ri(2,40))):trB('mul',trU(fn,trN(v)),trN(ri(2,9)));
+        return T(f,'SIN⁻¹, COS⁻¹ and TAN⁻¹ are f SIN, f COS and f TAN. Answers come out in degrees.');},
+    ()=>T(trB('mul',trN(ri(2,50)),trU('tan',trN(pick([30,60])))),'TAN acts on the angle in X; then the other number and ×.'),
+    ()=>{const a=pick([10,20,25,35,40,50,55,65,70,80]);return T(trB('div',trU('sin',trN(a)),trU('cos',trN(a))),
+      'sin ÷ cos is tan: one TAN does it.',{birdie:D(a).concat('tan')});},
+    ()=>T(trB('add',trB('mul',trN(2*ri(2,20)),trU('cos',trN(60))),trB('mul',trN(2*ri(2,20)),trU('sin',trN(30)))),
+      'Each product in turn; the first waits in Y until the +.'),
   ],
   [ // 10 CONSTANTS
-    ()=>trB('mul',trC('pi'),trU('sq',trN(ri(2,12)))),
-    ()=>trB('mul',trC('twopi'),trN(ri(3,20))),
-    ()=>trB('add',trB('mul',trC('e'),trN(ri(2,9))),trN(ri(2,30))),
-    ()=>trB('add',trU('sq',trC('pi')),trU('sq',trC('e'))),
-    ()=>trB('div',trC('pi'),trN(ri(2,9))),
+    ()=>T(trB('mul',trC('pi'),trU('sq',trN(ri(2,12)))),'π needs no ENTER: like RCL, it lifts the stack itself.'),
+    ()=>T(trB('mul',trC('twopi'),trN(ri(3,20))),'2π is f π: one value, two presses.'),
+    ()=>T(trB('add',trB('mul',trC('e'),trN(ri(2,9))),trN(ri(2,30))),'e is g π.'),
+    ()=>T(trB('add',trU('sq',trC('pi')),trU('sq',trC('e'))),'Square each constant with x², then +.'),
+    ()=>T(trB('div',trC('pi'),trN(ri(2,9))),'After π, key the number straight away: π already ended the entry.'),
   ],
   [ // 11 PERCENT: %, Δ% and %T leave the base in Y, so a + p% is a ENTER p % +
-    ()=>trB('pct',trN(20*ri(1,20)),trN(pick(TR_PCTS))),
+    ()=>T(trB('pct',trN(20*ri(1,20)),trN(pick(TR_PCTS))),'% keeps the base in Y and gives p% of it in X.'),
     ()=>{const a=20*ri(1,20),p=pick(TR_PCTS);
-        return trWith(trB('addpct',trN(a),trN(p)),{route:trDigits(a).concat('enter',trDigits(p),'pct','add')});},
+        return T(trB('addpct',trN(a),trN(p)),'% leaves the base in Y, so + adds the percentage on, like tax.',
+          {route:D(a).concat('enter',D(p),'pct','add')});},
     ()=>{const a=20*ri(1,20),p=pick(TR_PCTS);
-        return trWith(trB('subpct',trN(a),trN(p)),{route:trDigits(a).concat('enter',trDigits(p),'pct','sub')});},
+        return T(trB('subpct',trN(a),trN(p)),'% leaves the base in Y, so − takes the percentage off, like a discount.',
+          {route:D(a).concat('enter',D(p),'pct','sub')});},
     ()=>{const a=20*ri(1,10),k=5*pick([-9,-8,-6,-5,-4,-2,-1,1,2,4,5,6,8,10,12,15,20]);
-        return trB('dpct',trN(a),trN(a+a*k/100));},
-    ()=>{const a=20*ri(1,20);return trB('pctt',trN(a),trN(a*5*ri(1,19)/100));},
+        return T(trB('dpct',trN(a),trN(a+a*k/100)),'Δ% is g LOG: old value, ENTER, new value, then g Δ%.');},
+    ()=>{const a=20*ri(1,20);return T(trB('pctt',trN(a),trN(a*5*ri(1,19)/100)),'%T is g yˣ: total, ENTER, part, then g %T.');},
   ],
   [ // 12 EEX
-    ()=>trB('mul',trE(trMant(),ri(3,8)),trE(trMant(),-ri(2,5))),
-    ()=>{const m=ri(2,3),k=ri(2,3);return trB('div',trE(m*k,ri(4,9)),trE(m,ri(2,6)));},
-    ()=>{const e=ri(3,7);return trB('add',trE(trMant(),e),trE(trMant(),e));},
-    ()=>trB('mul',trN(ri(2,60)),trE(3,8)),
-    ()=>trB('div',trE(trMant(),ri(20,26)),trN(ri(2,9))),
+    ()=>T(trB('mul',trE(trMant(),ri(3,8)),trE(trMant(),-ri(2,5))),TIP_EEX),
+    ()=>{const m=ri(2,3),k=ri(2,3);return T(trB('div',trE(m*k,ri(4,9)),trE(m,ri(2,6))),TIP_EEX);},
+    ()=>{const e=ri(3,7);return T(trB('add',trE(trMant(),e),trE(trMant(),e)),TIP_EEX);},
+    ()=>T(trB('mul',trN(ri(2,60)),trE(3,8)),'3 EEX 8 is 3×10⁸ in a single entry: no × 10 and no yˣ.'),
+    ()=>T(trB('div',trE(trMant(),ri(20,26)),trN(ri(2,9))),TIP_EEX),
   ],
   [ // 13 MEMORY: x is keyed in and STOred once, then RCLed
-    ()=>{const x=trXv();return trWith(trB('add',trB('add',trB('mul',trN(ri(2,5)),trU('sq',trX(x))),trB('mul',trN(ri(2,9)),trX(x))),trN(ri(2,20))),{mem:x});},
-    ()=>{const x=trXv();return trWith(trB('sub',trU('sq',trX(x)),trB('mul',trN(ri(2,9)),trX(x))),{mem:x});},
-    ()=>{const x=trXv();return trWith(trB('mul',trB('add',trX(x),trN(ri(2,9))),trB('sub',trX(x),trN(ri(2,9)))),{mem:x});},
-    ()=>{const x=trXv();return trWith(trB('add',trB('pow',trX(x),trN(3)),trX(x)),{mem:x});},
-    ()=>{const x=trXv();return trWith(trB('div',trB('mul',trN(ri(2,9)),trX(x)),trB('add',trX(x),trN(ri(2,9)))),{mem:x});},
+    ()=>{const x=trXv(),a=ri(2,5),b=ri(2,9),c=ri(2,20);
+        return T(trB('add',trB('add',trB('mul',trN(a),trU('sq',trX(x))),trB('mul',trN(b),trX(x))),trN(c)),
+          'Horner’s trick: ax² + bx + c = (a·x + b)·x + c, so no x² is needed. And after STO, x is still in X.',
+          {mem:x,birdie:D(x).concat('sto',D(a),'mul',D(b),'add','rcl','mul',D(c),'add')});},
+    ()=>{const x=trXv(),b=ri(2,9);
+        return T(trB('sub',trU('sq',trX(x)),trB('mul',trN(b),trX(x))),
+          'x² − bx = x·(x − b): ENTER ENTER keeps two copies of x, so memory isn’t needed at all.',
+          {mem:x,birdie:D(x).concat('enter','enter',D(b),'sub','mul')});},
+    ()=>{const x=trXv(),a=ri(2,9),b=ri(2,9);
+        return T(trB('mul',trB('add',trX(x),trN(a)),trB('sub',trX(x),trN(b))),TIP_STO,
+          {mem:x,birdie:D(x).concat('sto',D(a),'add','rcl',D(b),'sub','mul')});},
+    ()=>{const x=trXv();
+        return T(trB('add',trB('pow',trX(x),trN(3)),trX(x)),TIP_STO,{mem:x,birdie:D(x).concat('sto','d3','yx','rcl','add')});},
+    ()=>{const x=trXv(),a=ri(2,9),b=ri(2,9);
+        return T(trB('div',trB('mul',trN(a),trX(x)),trB('add',trX(x),trN(b))),TIP_STO,
+          {mem:x,birdie:D(x).concat('sto',D(a),'mul','rcl',D(b),'add','div')});},
   ],
   [ // 14 LAST X: reuse a value with ENTER ENTER or LSTx instead of retyping it
     ()=>{const a=ri(11,49),b=ri(11,49);
-        return trWith(trB('div',trN(a),trB('add',trN(a),trN(b))),{route:trDigits(a).concat('enter','enter',trDigits(b),'add','div')});},
+        return T(trB('div',trN(a),trB('add',trN(a),trN(b))),'ENTER ENTER keeps two copies of a: one for the bracket, one for the ÷.',
+          {route:D(a).concat('enter','enter',D(b),'add','div')});},
     ()=>{const a=ri(20,60),b=ri(11,a-5);
-        return trWith(trB('mul',trN(a),trB('sub',trN(a),trN(b))),{route:trDigits(a).concat('enter','enter',trDigits(b),'sub','mul')});},
+        return T(trB('mul',trN(a),trB('sub',trN(a),trN(b))),'ENTER ENTER keeps two copies of a: one for the bracket, one for the ×.',
+          {route:D(a).concat('enter','enter',D(b),'sub','mul')});},
     ()=>{const a=ri(11,99),b=ri(101,999);
-        return trWith(trB('div',trB('add',trN(a),trN(b)),trN(b)),{route:trDigits(a).concat('enter',trDigits(b),'add','lastx','div')});},
+        return T(trB('div',trB('add',trN(a),trN(b)),trN(b)),'LSTx (g ENTER) brings back b, the last X before the +, so you don’t retype it.',
+          {route:D(a).concat('enter',D(b),'add','lastx','div')});},
     ()=>{const a=ri(101,999);
-        return trWith(trB('add',trU('sq',trN(a)),trN(a)),{route:trDigits(a).concat('sq','lastx','add')});},
+        return T(trB('add',trU('sq',trN(a)),trN(a)),'LSTx (g ENTER) brings back a, the X before x².',{route:D(a).concat('sq','lastx','add')});},
     ()=>{const b=ri(101,499),a=b+ri(100,500);
-        return trWith(trB('mul',trB('sub',trN(a),trN(b)),trN(b)),{route:trDigits(a).concat('enter',trDigits(b),'sub','lastx','mul')});},
+        return T(trB('mul',trB('sub',trN(a),trN(b)),trN(b)),'LSTx (g ENTER) brings back b, the X before the −.',
+          {route:D(a).concat('enter',D(b),'sub','lastx','mul')});},
   ],
   [ // 15 MASTER
-    ()=>trB('mul',trN(pick([500,1000,2000,5000])),trB('pow',trN(parseFloat('1.0'+ri(2,8))),trN(ri(2,12)))),
-    ()=>trB('div',trB('mul',trB('mul',trC('pi'),trU('sq',trN(ri(2,12)))),trN(ri(2,30))),trN(3)),
-    ()=>trB('mul',trB('div',trN(4),trN(3)),trB('mul',trC('pi'),trB('pow',trN(ri(2,9)),trN(3)))),
-    ()=>{const b=ri(2,5);return trB('div',trU('ln',trN(b**ri(3,6))),trU('ln',trN(b)));},
+    ()=>T(trB('mul',trN(pick([500,1000,2000,5000])),trB('pow',trN(parseFloat('1.0'+ri(2,8))),trN(ri(2,12)))),
+      'Do the power first; then the amount needs no ENTER. The 000 key helps with 1000.'),
+    ()=>T(trB('div',trB('mul',trB('mul',trC('pi'),trU('sq',trN(ri(2,12)))),trN(ri(2,30))),trN(3)),
+      'Chain left to right: every operation ends the entry, so no more ENTERs are needed.'),
+    ()=>T(trB('mul',trB('div',trN(4),trN(3)),trB('mul',trC('pi'),trB('pow',trN(ri(2,9)),trN(3)))),
+      'Products can be keyed in any order; π and results need no ENTER.'),
+    ()=>{const b=ri(2,5);return T(trB('div',trU('ln',trN(b**ri(3,6))),trU('ln',trN(b))),TIP_LOGB);},
     ()=>{const p=ri(1,9);let q=ri(1,9);if(q===p)q=p%9+1;  // x² + sx + c = 0 with roots −p, −q
-        const s=p+q,c=p*q;
-        return trB('div',trB('add',trN(-s),trU('sqrt',trB('sub',trU('sq',trN(s)),trB('mul',trN(4),trN(c))))),trN(2));},
+        const s=p+q,c=p*q,root=trU('sqrt',trB('sub',trU('sq',trN(s)),trB('mul',trN(4),trN(c))));
+        return T(trB('div',trB('add',trN(-s),root),trN(2)),
+          'Work from the inside out. −s + √(…) is √(…) − s, so subtract s instead of using CHS.',
+          {birdie:trRoute(root,false).concat(D(s),'sub','d2','div')});},
   ],
 ];
 
@@ -1195,12 +1293,13 @@ function trSim(seq){
 }
 // A formula is fair if its answer isn't one of its numbers, no part of it
 // already equals the answer (so it can't pass part-way through), and its
-// par route really reaches the answer.
+// par route really reaches the answer (and a birdie route too, in fewer keys).
 function trFair(f){
   const ans=trVal(f);
   if(!isFinite(ans)||ans===0||Math.abs(ans)>1e30)return false;
   if(trAllowed(f).some(v=>trSame(Math.abs(ans),v)))return false;
   if(!trNodes(f).slice(1).every(n=>!trSame(trVal(n),ans)))return false;
+  if(f.birdie&&!(trSame(trSim(f.birdie),ans)&&trCost(f.birdie)<trCost(trParRoute(f))))return false;
   return trSame(trSim(trParRoute(f)),ans);
 }
 function trMake(level){
@@ -1274,6 +1373,13 @@ function trPress(fn){
   return [];
 }
 function trCost(seq){return seq.reduce((s,fn)=>s+trPress(fn).length,0);}
+// The keypad labels for a function's presses, e.g. sqrt → f, √x
+function trLabels(fn){
+  const ks=trPress(fn);
+  if(ks.length<2)return ks.map(k=>({t:k.main,c:''}));
+  const c=ks[0].fn==='shiftF'?'f':'g';
+  return [{t:c,c},{t:c==='f'?ks[1].gold:ks[1].blue,c}];
+}
 function trDigits(v){
   let s=String(v),z=0;
   if(s.startsWith('0.'))s=s.slice(1);  // · on its own starts "0."
@@ -1338,7 +1444,7 @@ const trStarText=n=>'★'.repeat(n)+'☆'.repeat(3-n);
 const trSigned=v=>v>0?'+'+v:v<0?'−'+(-v):'0';
 
 // ── Menu ──
-function trainerButton(){if(tr.on)trainerClose();else trainerOpen();}
+function trainerButton(){if(tr.retry)trRetryDone();else if(tr.on)trainerClose();else trainerOpen();}
 function trainerOpen(){
   trStop();
   if(!tr.on){
@@ -1376,7 +1482,10 @@ function trainerClose(){
   trStop();
   document.getElementById('trMenu').classList.remove('show');
   document.getElementById('trResult').classList.remove('show');
+  document.getElementById('trReview').classList.remove('show');
   document.getElementById('disp').classList.remove('training');
+  document.getElementById('trSkip').textContent='SKIP';
+  tr.retry=null;
   document.getElementById('trainBtn').textContent='PRACTICE';
   if(tr.saved)({stack,inputStr,isTyping,shiftMode,angleMode,memory,memUsed,lastX,liftEnabled}=tr.saved);
   tr.saved=null;tr.on=false;tr.playing=false;
@@ -1391,7 +1500,8 @@ function trainerStart(level){
   document.getElementById('disp').classList.add('training');
   document.getElementById('trainBtn').textContent='EXIT';
   angleMode='DEG';
-  Object.assign(tr,{level,playing:true,busy:false,solved:0,n:0,results:[]});
+  Object.assign(tr,{level,playing:true,busy:false,solved:0,n:0,results:[],retry:null});
+  document.getElementById('trSkip').textContent='SKIP';
   if(tr.mode==='cd'){
     const secs=TR_LEVELS[level-1].secs||CD_SECS;
     tr.endAt=performance.now()+secs*1000;tr.lastSec=secs;
@@ -1403,18 +1513,21 @@ function trStop(){
   clearInterval(tr.timer);clearTimeout(tr.pending);
   tr.timer=tr.pending=null;tr.busy=false;
 }
-function trNext(){
-  tr.f=trMake(tr.level);
-  tr.ans=trVal(tr.f);
-  tr.allowed=trAllowed(tr.f);
-  tr.par=trCost(trParRoute(tr.f));
-  tr.keys=0;tr.tries=1;tr.tainted=false;tr.msg='';tr.busy=false;
+function trNext(){trLoad(trMake(tr.level));}
+function trLoad(f){
+  tr.f=f;
+  tr.ans=trVal(f);
+  tr.allowed=trAllowed(f);
+  tr.route=trParRoute(f);
+  tr.par=trCost(tr.route);
+  tr.keys=0;tr.seq=[];tr.tries=1;tr.tainted=false;tr.msg='';tr.busy=false;
   A.clrAll();shiftMode=0;
   render();trUpdate();
 }
 function trUpdate(){
-  const cd=tr.mode==='cd';
-  document.getElementById('trProg').textContent='L'+tr.level+' · '+(cd?'SOLVED '+tr.solved:(tr.n+1)+'/'+PAR_SET);
+  const cd=tr.mode==='cd'&&!tr.retry;
+  document.getElementById('trProg').textContent='L'+tr.level+' · '
+    +(tr.retry?'RETRY '+(tr.rv+1):cd?'SOLVED '+tr.solved:(tr.n+1)+'/'+PAR_SET);
   const m=document.getElementById('trMeter');
   if(cd){
     const s=Math.max(0,Math.ceil((tr.endAt-performance.now())/1000));
@@ -1448,12 +1561,13 @@ function trainerOnEntry(v){
   trSay(fmt(v)+' NOT IN FORMULA · CLR ALL','bad');
 }
 // After every key: count it, then check whether X holds the answer
-function trainerAfterKey(fn,cost){
+function trainerAfterKey(fn,cost,labels){
   if(fn==='clrAll'){
-    tr.keys=0;tr.tries++;tr.tainted=false;tr.msg='';
+    tr.keys=0;tr.seq=[];tr.tries++;tr.tainted=false;tr.msg='';
     trUpdate();return;
   }
   tr.keys+=cost;
+  tr.seq.push(...labels);
   if(!isTyping&&!tr.tainted&&trSame(stack[0],tr.ans))trSolved();
   else trUpdate();
 }
@@ -1466,11 +1580,13 @@ function trSolved(){
     tr.pending=setTimeout(trNext,600);
     return;
   }
-  tr.results.push({keys:tr.keys,par:tr.par});
-  const d=tr.keys-tr.par;
+  const d=tr.keys-tr.par,mine={keys:tr.keys,seq:tr.seq.slice()};
+  // a retry is for learning: it is shown on the review card but not scored
+  if(tr.retry)tr.retry.retry=mine;
+  else tr.results.push(Object.assign({par:tr.par,f:tr.f,route:tr.route},mine));
   trSound(d<0?'birdie':'ok');
   trSay(d<0?'✓ BIRDIE! '+trSigned(d):d===0?'✓ ON PAR':'✓ '+trSigned(d)+' OVER PAR','ok');
-  tr.pending=setTimeout(trAdvance,1300);
+  tr.pending=setTimeout(tr.retry?trRetryDone:trAdvance,1300);
 }
 function trAdvance(){
   tr.n++;
@@ -1478,8 +1594,9 @@ function trAdvance(){
 }
 function trainerSkip(){
   if(!tr.playing||tr.busy)return;
+  if(tr.retry){trRetryDone();return;}
   if(tr.mode==='cd'){trNext();return;}
-  tr.results.push({keys:tr.par+SKIP_PENALTY,par:tr.par,skipped:true});
+  tr.results.push({keys:tr.par+SKIP_PENALTY,par:tr.par,skipped:true,f:tr.f,route:tr.route});
   trAdvance();
 }
 function trFinish(){
@@ -1506,9 +1623,62 @@ function trFinish(){
     const d=r.keys-r.par,c=document.createElement('span');
     c.className=d<0?'under':d>0?'over':'';
     c.textContent=(i+1)+': '+(r.skipped?'SKIP':trSigned(d));
+    c.onclick=()=>trainerReview(i);
     chips.appendChild(c);
   });
+  document.getElementById('trrHint').textContent=cd?'':'TAP A FORMULA TO REVIEW IT';
   document.getElementById('trResult').classList.add('show');
+}
+
+// ── Review (par mode): your keys, par, a shorter route and a tip ──
+function trKeycaps(labels){
+  const box=document.createElement('div');box.className='keys';
+  labels.forEach(l=>{const s=document.createElement('span');s.className='kc '+l.c;s.textContent=l.t;box.appendChild(s);});
+  return box;
+}
+function trRouteCaps(route){return route.flatMap(trLabels);}
+function trainerReview(i){
+  if(i<0||i>=tr.results.length)return;
+  tr.rv=i;
+  const r=tr.results[i],d=r.keys-r.par,f=r.f;
+  document.getElementById('trvHead').textContent='FORMULA '+(i+1)+' OF '+tr.results.length+' · '
+    +(r.skipped?'SKIPPED':d<0?'BIRDIE '+trSigned(d):d===0?'ON PAR':trSigned(d)+' OVER PAR');
+  document.getElementById('trvFormula').textContent=trFormula(f);
+  const rows=document.getElementById('trvRows');rows.innerHTML='';
+  const row=(label,keys,caps,cls)=>{
+    const el=document.createElement('div');el.className='trv-row '+(cls||'');
+    const l=document.createElement('div');l.className='lbl';l.innerHTML=label+'<br>'+keys+' KEYS';
+    el.appendChild(l);el.appendChild(trKeycaps(caps));rows.appendChild(el);
+  };
+  if(!r.skipped)row('YOURS',r.keys,r.seq,d>0?'over':d<0?'under':'');
+  if(r.retry)row('RETRY',r.retry.keys,r.retry.seq,r.retry.keys>r.par?'over':r.retry.keys<r.par?'under':'');
+  row('PAR',r.par,trRouteCaps(r.route));
+  if(f.birdie)row('BEAT PAR',trCost(f.birdie),trRouteCaps(f.birdie),'under');
+  document.getElementById('trvTip').textContent=f.tip||'';
+  document.getElementById('trvPrev').classList.toggle('off',i===0);
+  document.getElementById('trvNext').classList.toggle('off',i===tr.results.length-1);
+  document.getElementById('trResult').classList.remove('show');
+  document.getElementById('trReview').classList.add('show');
+}
+function trainerReviewClose(){
+  document.getElementById('trReview').classList.remove('show');
+  document.getElementById('trResult').classList.add('show');
+}
+// Try the reviewed formula again; it doesn't change the score
+function trainerRetry(){
+  const r=tr.results[tr.rv];
+  document.getElementById('trReview').classList.remove('show');
+  document.getElementById('trainBtn').textContent='BACK';
+  document.getElementById('trSkip').textContent='BACK';
+  tr.retry=r;tr.playing=true;angleMode='DEG';
+  trLoad(r.f);
+}
+function trRetryDone(){
+  trStop();
+  tr.playing=false;tr.retry=null;
+  document.getElementById('trSkip').textContent='SKIP';
+  document.getElementById('trainBtn').textContent='EXIT';
+  trainerReview(tr.rv);
 }
 
 buildKeypad();
